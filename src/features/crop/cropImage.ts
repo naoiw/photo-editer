@@ -1,8 +1,9 @@
 import {
   canvasToBlob,
+  clampImageScale,
   FILL_COLORS,
   getPixelCropRect,
-  getSourceIntersection,
+  getScaledSourceSize,
   softClampCropRect,
   type CropRect,
   type FillColorId,
@@ -14,19 +15,22 @@ export async function cropImageToSize(
   outputSize: Size,
   cropRect: CropRect | undefined,
   fillColor: FillColorId = 'black',
+  imageScale = 1,
 ) {
   const bitmap = await createImageBitmap(file)
   try {
     const outputWidth = Math.max(1, Math.floor(outputSize.width))
     const outputHeight = Math.max(1, Math.floor(outputSize.height))
+    const scale = clampImageScale(imageScale)
+    const scaled = getScaledSourceSize(bitmap.width, bitmap.height, scale)
     const sourceCrop = softClampCropRect(
       {
-        ...(cropRect ?? getPixelCropRect(bitmap.width, bitmap.height, outputWidth, outputHeight)),
+        ...(cropRect ?? getPixelCropRect(scaled.width, scaled.height, outputWidth, outputHeight)),
         width: outputWidth,
         height: outputHeight,
       },
-      bitmap.width,
-      bitmap.height,
+      scaled.width,
+      scaled.height,
     )
 
     const canvas = document.createElement('canvas')
@@ -42,20 +46,19 @@ export async function cropImageToSize(
       context.fillRect(0, 0, outputWidth, outputHeight)
     }
 
-    const intersection = getSourceIntersection(sourceCrop, bitmap.width, bitmap.height)
-    if (intersection) {
-      context.drawImage(
-        bitmap,
-        intersection.sx,
-        intersection.sy,
-        intersection.sw,
-        intersection.sh,
-        intersection.dx,
-        intersection.dy,
-        intersection.sw,
-        intersection.sh,
-      )
-    }
+    context.imageSmoothingEnabled = scale !== 1
+    context.imageSmoothingQuality = 'high'
+    context.drawImage(
+      bitmap,
+      0,
+      0,
+      bitmap.width,
+      bitmap.height,
+      -sourceCrop.x,
+      -sourceCrop.y,
+      scaled.width,
+      scaled.height,
+    )
 
     const transparent = fillColor === 'transparent'
     return {

@@ -1,5 +1,8 @@
 export const IMAGE_WEBP_QUALITY = 0.92
 export const CROP_MAX_OVERHANG_RATIO = 0.25
+export const IMAGE_SCALE_MIN = 0.25
+export const IMAGE_SCALE_MAX = 8
+export const IMAGE_SCALE_STEP = 0.05
 
 export type CropRect = {
   x: number
@@ -57,6 +60,41 @@ export function softClampCropRect(
     width,
     height,
   }
+}
+
+export function clampImageScale(value: number) {
+  if (!Number.isFinite(value)) return 1
+  const stepped = Math.round(value / IMAGE_SCALE_STEP) * IMAGE_SCALE_STEP
+  const rounded = Math.round(stepped * 100) / 100
+  return Math.min(IMAGE_SCALE_MAX, Math.max(IMAGE_SCALE_MIN, rounded))
+}
+
+export function getScaledSourceSize(sourceWidth: number, sourceHeight: number, scale: number) {
+  const clamped = clampImageScale(scale)
+  return {
+    width: sourceWidth * clamped,
+    height: sourceHeight * clamped,
+  }
+}
+
+/** 拡大縮小後も、枠の中心が同じ元画像上の点を指すように位置を付け替える */
+export function rescaleCropRect(
+  crop: CropRect,
+  previousScale: number,
+  nextScale: number,
+  sourceWidth: number,
+  sourceHeight: number,
+): CropRect {
+  const from = previousScale === 0 ? 1 : previousScale
+  const to = clampImageScale(nextScale)
+  const focusX = (crop.x + crop.width / 2) / from
+  const focusY = (crop.y + crop.height / 2) / from
+  const scaled = getScaledSourceSize(sourceWidth, sourceHeight, to)
+  return softClampCropRect({
+    ...crop,
+    x: focusX * to - crop.width / 2,
+    y: focusY * to - crop.height / 2,
+  }, scaled.width, scaled.height)
 }
 
 export function getSourceIntersection(crop: CropRect, sourceWidth: number, sourceHeight: number) {

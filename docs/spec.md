@@ -122,7 +122,7 @@ photo-editer/
 
 ### 7.1 画面の役割
 
-指定した幅・高さ（px）の出力画像を作る。切り抜き枠の大きさは出力サイズと一致し、元画像上をドラッグして位置を決める。枠は画像外へはみ出せる。
+指定した幅・高さ（px）の出力画像を作る。切り抜き枠の大きさは出力サイズと一致し、元画像上をドラッグして位置を決める。元画像は拡大縮小でき、拡大すると枠に入る範囲が狭く、縮小すると広くなる。枠は画像外へはみ出せる。
 
 ### 7.2 入力
 
@@ -131,6 +131,7 @@ photo-editer/
 | 元画像 | 未選択 | 必須 |
 | 幅 (px) | `800` | 1 以上の整数（未満は 1 に丸める） |
 | 高さ (px) | `600` | 1 以上の整数 |
+| 画像の拡大率 | `1`（100%） | `0.25`〜`8`（25%〜800%、5%刻み） |
 | はみ出し部分の背景色 | `black`（黒） | 下記パレット |
 
 塗りつぶしパレット（`FILL_COLORS`）:
@@ -147,33 +148,36 @@ photo-editer/
 
 ### 7.3 切り抜き枠の挙動
 
-1. 画像読み込み後、`getPixelCropRect` で枠を画像中央に置く。出力サイズが元画像より大きい場合、座標は負になり、枠が画像からはみ出す。
+1. 画像読み込み後、拡大後サイズに対して `getPixelCropRect` で枠を中央に置く。出力サイズが拡大後画像より大きい場合、座標は負になり、枠が画像からはみ出す。
 2. 幅・高さ・元画像が変わると枠位置を中央配置に再計算する。
 3. ポインタドラッグで枠を平行移動する。リサイズ操作はない。
-4. `softClampCropRect` で移動範囲を制限する。はみ出し上限は枠サイズの **25%**（`CROP_MAX_OVERHANG_RATIO = 0.25`）。
+4. `softClampCropRect` で移動範囲を制限する。はみ出し上限は枠サイズの **25%**（`CROP_MAX_OVERHANG_RATIO = 0.25`）。対象サイズは拡大後の画像サイズ。
 5. プレビューステージは枠のはみ出し分だけ余白を持ち、余白の色は選択中の塗り色（透明時はチェッカーボード）。
+6. 右上の切り抜き位置で入力画像そのものを拡大縮小できる（25%〜800%、5%刻み）。枠のピクセルサイズは出力サイズのまま。操作は − / スライダー / ＋、パーセント表示のクリックで 100%、ホイール。拡大縮小しても枠の中心が同じ元画像上の点を指すよう `rescaleCropRect` する。画像を選び直すと 100% に戻る。
 
 ステージサイズ:
 
+- `scaledWidth = 元画像幅 * 拡大率`
+- `scaledHeight = 元画像高さ * 拡大率`
 - `padX = cropRect.width * 0.25`
 - `padY = cropRect.height * 0.25`
-- `stageWidth = 元画像幅 + padX * 2`
-- `stageHeight = 元画像高さ + padY * 2`
+- `stageWidth = scaledWidth + padX * 2`
+- `stageHeight = scaledHeight + padY * 2`
 
 ### 7.4 処理（`cropImageToSize`）
 
 1. `createImageBitmap` で元画像を読む。
-2. 出力幅・高さを 1 以上の整数に切り捨てる。
-3. 切り抜き矩形の幅・高さを出力サイズに合わせ、`softClampCropRect` で位置を制限する。
+2. 出力幅・高さを 1 以上の整数に切り捨てる。拡大率を `clampImageScale` する。
+3. 切り抜き矩形の幅・高さを出力サイズに合わせ、拡大後サイズに対して `softClampCropRect` で位置を制限する。
 4. キャンバスを出力サイズで作り、透明以外なら全面を塗りつぶす。
-5. `getSourceIntersection` で元画像と枠の交差領域だけを、交差位置に 1:1 で描画する（交差内はリサイズしない）。交差がなければ塗りだけが残る。
+5. 元画像を拡大後サイズでキャンバスに描画し、切り抜き枠の左上をキャンバス原点に合わせる（`drawImage(..., -crop.x, -crop.y, scaledWidth, scaledHeight)`）。枠外や画像外は塗りが残る。拡大率が 1 のときはスムージングしない。
 6. 透明なら PNG、それ以外は WebP で Blob 化する。
 7. `ImageBitmap.close()` で解放する。
 
 交差の写像:
 
-- ソース側: 枠と元画像の重なり矩形 `(sx, sy, sw, sh)`
-- 出力側: 枠ローカル座標 `(dx, dy)` に同じ `sw × sh` を描画
+- 作業空間: 元画像を拡大率で伸縮した座標系。切り抜き枠の幅・高さは出力ピクセルと一致
+- 出力側: 枠内の拡大後画像を出力キャンバス全面に配置（拡大率が 1 なら従来どおり 1:1）
 
 ### 7.5 操作と出力
 
@@ -247,6 +251,9 @@ photo-editer/
 | --- | --- |
 | `getPixelCropRect(sw, sh, cw, ch)` | 切り抜き枠をソース中央に置く。枠がソースより大きければ `x` / `y` は負 |
 | `softClampCropRect(crop, sw, sh, ratio=0.25)` | 枠位置を、枠幅・高さの `ratio` 分までのはみ出しに制限する |
+| `clampImageScale(value)` | 拡大率を 0.25〜8、5%刻みに丸める。非数は `1` |
+| `getScaledSourceSize(sw, sh, scale)` | 拡大後の画像幅・高さ |
+| `rescaleCropRect(crop, from, to, sw, sh)` | 拡大率変更後も枠中心が同じ元画像点を指すよう位置を付け替える |
 | `getSourceIntersection(crop, sw, sh)` | 枠とソースの交差をソース座標と枠ローカル座標で返す。交差なしなら `null` |
 | `filenameWithoutExtension` | 末尾の拡張子（最後の `.` 以降）だけを除く。例: `photo.final.png` → `photo.final` |
 | `canvasToBlob(canvas, type='image/webp', quality=0.92)` | `toBlob` の Promise 化。失敗時は例外 |
@@ -286,7 +293,7 @@ pnpm test     # vitest run
 ### 11.3 テスト
 
 - 対象: `src/**/*.test.ts`
-- 現行は `imageUtils.test.ts` のみ（中央配置、はみ出し clamp、交差写像、ファイル名）
+- 現行は `imageUtils.test.ts` のみ（中央配置、はみ出し clamp、交差写像、拡大率、ファイル名）
 - Canvas を使う `cropImageToSize` / `composeBackgroundAndFrame` のテストは未実装
 
 ### 11.4 Vercel

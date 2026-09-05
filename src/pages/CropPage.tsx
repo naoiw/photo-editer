@@ -1,5 +1,5 @@
-import { IconDownload as Download } from '@tabler/icons-react'
-import { useEffect, useRef, useState } from 'react'
+import { IconDownload as Download, IconMinus as Minus, IconPlus as Plus } from '@tabler/icons-react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { AppShell } from '../components/AppShell'
 import { Notice } from '../components/Feedback'
@@ -7,10 +7,16 @@ import { ImageFilePicker } from '../components/ImageFilePicker'
 import { cropImageToSize } from '../features/crop/cropImage'
 import {
   CROP_MAX_OVERHANG_RATIO,
+  IMAGE_SCALE_MAX,
+  IMAGE_SCALE_MIN,
+  IMAGE_SCALE_STEP,
+  clampImageScale,
   downloadBlob,
   FILL_COLORS,
   filenameWithoutExtension,
   getPixelCropRect,
+  getScaledSourceSize,
+  rescaleCropRect,
   softClampCropRect,
   type CropRect,
   type FillColorId,
@@ -34,15 +40,18 @@ export function CropPage() {
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
   const [error, setError] = useState('')
   const [processing, setProcessing] = useState(false)
+  const [imageScale, setImageScale] = useState(1)
   const sourceUrl = useObjectUrl(file)
   const dragState = useRef<{ startX: number; startY: number; origin: CropRect } | null>(null)
+  const stageRef = useRef<HTMLDivElement>(null)
+  const imageScaleRef = useRef(imageScale)
+  imageScaleRef.current = imageScale
 
   useEffect(() => {
-    if (!file) {
-      setMeta(null)
-      setCropRect(null)
-      return
-    }
+    setImageScale(1)
+    setMeta(null)
+    setCropRect(null)
+    if (!file) return
 
     let cancelled = false
     void createImageBitmap(file).then((bitmap) => {
@@ -63,7 +72,8 @@ export function CropPage() {
 
   useEffect(() => {
     if (!meta) return
-    setCropRect(getPixelCropRect(meta.width, meta.height, width, height))
+    const scaled = getScaledSourceSize(meta.width, meta.height, imageScaleRef.current)
+    setCropRect(getPixelCropRect(scaled.width, scaled.height, width, height))
   }, [width, height, meta])
 
   useEffect(() => {
@@ -71,6 +81,33 @@ export function CropPage() {
       if (previewUrl) URL.revokeObjectURL(previewUrl)
     }
   }, [previewUrl])
+
+  const applyImageScale = useCallback((nextScale: number) => {
+    const current = imageScaleRef.current
+    const clamped = clampImageScale(nextScale)
+    if (clamped === current) return
+    imageScaleRef.current = clamped
+    setImageScale(clamped)
+    setCropRect((currentRect) => {
+      if (!currentRect || !meta) return currentRect
+      return rescaleCropRect(currentRect, current, clamped, meta.width, meta.height)
+    })
+  }, [meta])
+
+  const canAdjustCrop = Boolean(sourceUrl && meta && cropRect)
+
+  useEffect(() => {
+    const stage = stageRef.current
+    if (!stage || !canAdjustCrop) return
+
+    const onWheel = (event: WheelEvent) => {
+      event.preventDefault()
+      applyImageScale(imageScaleRef.current + (event.deltaY < 0 ? IMAGE_SCALE_STEP : -IMAGE_SCALE_STEP))
+    }
+
+    stage.addEventListener('wheel', onWheel, { passive: false })
+    return () => stage.removeEventListener('wheel', onWheel)
+  }, [applyImageScale, canAdjustCrop])
 
   async function handleSelect(nextFile: File) {
     setError('')
@@ -84,7 +121,7 @@ export function CropPage() {
     setProcessing(true)
     setError('')
     try {
-      const result = await cropImageToSize(file, { width, height }, cropRect, fillColor)
+      const result = await cropImageToSize(file, { width, height }, cropRect, fillColor, imageScale)
       if (previewUrl) URL.revokeObjectURL(previewUrl)
       setPreviewUrl(URL.createObjectURL(result.blob))
     } catch (cause) {
@@ -100,7 +137,7 @@ export function CropPage() {
     setProcessing(true)
     setError('')
     try {
-      const result = await cropImageToSize(file, { width, height }, cropRect, fillColor)
+      const result = await cropImageToSize(file, { width, height }, cropRect, fillColor, imageScale)
       downloadBlob(result.blob, `${filenameWithoutExtension(file.name)}-cropped.${result.extension}`)
       if (previewUrl) URL.revokeObjectURL(previewUrl)
       setPreviewUrl(URL.createObjectURL(result.blob))
@@ -112,13 +149,14 @@ export function CropPage() {
     }
   }
 
+  const scaled = meta ? getScaledSourceSize(meta.width, meta.height, imageScale) : null
   const padX = cropRect ? cropRect.width * CROP_MAX_OVERHANG_RATIO : 0
   const padY = cropRect ? cropRect.height * CROP_MAX_OVERHANG_RATIO : 0
-  const stageWidth = meta ? meta.width + padX * 2 : 0
-  const stageHeight = meta ? meta.height + padY * 2 : 0
+  const stageWidth = scaled ? scaled.width + padX * 2 : 0
+  const stageHeight = scaled ? scaled.height + padY * 2 : 0
 
   function updateCropFromPointer(clientX: number, clientY: number, display: HTMLElement) {
-    if (!dragState.current || !meta || stageWidth <= 0 || stageHeight <= 0) return
+    if (!dragState.current || !scaled || stageWidth <= 0 || stageHeight <= 0) return
     const bounds = display.getBoundingClientRect()
     const scaleX = stageWidth / bounds.width
     const scaleY = stageHeight / bounds.height
@@ -128,10 +166,10 @@ export function CropPage() {
       ...dragState.current.origin,
       x: dragState.current.origin.x + deltaX,
       y: dragState.current.origin.y + deltaY,
-    }, meta.width, meta.height))
+    }, scaled.width, scaled.height))
   }
 
-  const cropStyle = meta && cropRect && stageWidth > 0
+  const cropStyle = scaled && cropRect && stageWidth > 0
     ? {
         left: `${((cropRect.x + padX) / stageWidth) * 100}%`,
         top: `${((cropRect.y + padY) / stageHeight) * 100}%`,
@@ -140,12 +178,12 @@ export function CropPage() {
       }
     : undefined
 
-  const imageStyle = meta && stageWidth > 0
+  const imageStyle = scaled && stageWidth > 0
     ? {
         left: `${(padX / stageWidth) * 100}%`,
         top: `${(padY / stageHeight) * 100}%`,
-        width: `${(meta.width / stageWidth) * 100}%`,
-        height: `${(meta.height / stageHeight) * 100}%`,
+        width: `${(scaled.width / stageWidth) * 100}%`,
+        height: `${(scaled.height / stageHeight) * 100}%`,
       }
     : undefined
 
@@ -223,14 +261,56 @@ export function CropPage() {
 
           {meta ? (
             <p className="text-xs text-muted">
-              元画像: {meta.width} × {meta.height} px ／ 切り抜き: {width} × {height} px
+              元画像: {meta.width} × {meta.height} px ／ 拡大後: {Math.round(scaled?.width ?? 0)} × {Math.round(scaled?.height ?? 0)} px ／ 切り抜き: {width} × {height} px
             </p>
           ) : null}
         </div>
 
         <div className="grid gap-5">
           <div className="grid gap-3 rounded-lg border border-line bg-panel p-6">
-            <h2 className="text-sm font-semibold">切り抜き位置</h2>
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <h2 className="text-sm font-semibold">切り抜き位置</h2>
+              {sourceUrl && meta && cropRect ? (
+                <div className="flex items-center gap-1">
+                  <button
+                    aria-label="画像を縮小"
+                    className="icon-button"
+                    disabled={imageScale <= IMAGE_SCALE_MIN}
+                    onClick={() => applyImageScale(imageScale - IMAGE_SCALE_STEP)}
+                    type="button"
+                  >
+                    <Minus size={16} />
+                  </button>
+                  <input
+                    aria-label="画像の拡大率"
+                    className="w-24 accent-accent"
+                    max={IMAGE_SCALE_MAX}
+                    min={IMAGE_SCALE_MIN}
+                    onChange={(event) => applyImageScale(Number(event.target.value))}
+                    step={IMAGE_SCALE_STEP}
+                    type="range"
+                    value={imageScale}
+                  />
+                  <button
+                    className="min-w-14 rounded-md px-1 py-1.5 text-xs font-medium text-ink hover:bg-soft"
+                    onClick={() => applyImageScale(1)}
+                    title="100%に戻す"
+                    type="button"
+                  >
+                    {Math.round(imageScale * 100)}%
+                  </button>
+                  <button
+                    aria-label="画像を拡大"
+                    className="icon-button"
+                    disabled={imageScale >= IMAGE_SCALE_MAX}
+                    onClick={() => applyImageScale(imageScale + IMAGE_SCALE_STEP)}
+                    type="button"
+                  >
+                    <Plus size={16} />
+                  </button>
+                </div>
+              ) : null}
+            </div>
             {sourceUrl && meta && cropRect ? (
               <div
                 className="relative overflow-hidden rounded-md select-none"
@@ -251,6 +331,7 @@ export function CropPage() {
                 onPointerUp={() => {
                   dragState.current = null
                 }}
+                ref={stageRef}
                 style={{
                   aspectRatio: `${stageWidth} / ${stageHeight}`,
                   background: fillColor === 'transparent'
@@ -275,7 +356,9 @@ export function CropPage() {
                 画像を選択すると、ここで切り抜き範囲をドラッグ調整できます。
               </div>
             )}
-            <p className="text-xs text-muted">枠の大きさは指定したピクセルサイズです。画像外へ少しはみ出せます。</p>
+            <p className="text-xs text-muted">
+              枠の大きさは指定したピクセルサイズです。画像を拡大すると枠に入る範囲が狭くなり、縮小すると広くなります。ホイールでも操作できます。
+            </p>
           </div>
 
           <div className="grid gap-4 rounded-lg border border-line bg-panel p-6">
