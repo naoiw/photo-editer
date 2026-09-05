@@ -5,7 +5,7 @@ import { AppShell } from '../components/AppShell'
 const tools = [
   {
     to: '/crop',
-    title: 'クロップ',
+    title: 'トリミング',
     description: '縦横サイズを指定して、ローカル画像を切り抜き・リサイズします。',
     icon: Crop,
   },
@@ -23,7 +23,7 @@ export function HomePage() {
       <div className="grid gap-2">
         <h1 className="page-title">画像加工ツール</h1>
         <p className="text-sm text-muted">
-          ローカルの画像をブラウザ上でクロップしたり、背景とフレームを合成したりできます。画像はサーバーへ送信されません。
+          ローカルの画像をブラウザ上でトリミングしたり、背景とフレームを合成したりできます。画像はサーバーへ送信されません。
         </p>
       </div>
 

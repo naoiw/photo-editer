@@ -126,7 +126,7 @@ export function CropPage() {
       setPreviewUrl(URL.createObjectURL(result.blob))
     } catch (cause) {
       console.error(cause)
-      setError('クロップに失敗しました。')
+      setError('トリミングに失敗しました。')
     } finally {
       setProcessing(false)
     }
@@ -194,7 +194,7 @@ export function CropPage() {
     <AppShell>
       <div className="flex items-end justify-between gap-6">
         <div className="grid gap-2">
-          <h1 className="page-title">クロップ</h1>
+          <h1 className="page-title">トリミング</h1>
           <p className="text-sm text-muted">
             出力サイズをピクセルで指定し、切り抜き位置を調整できます。枠は画像からはみ出しても構いません。
           </p>
@@ -384,7 +384,7 @@ export function CropPage() {
                 }}
               >
                 <img
-                  alt="クロップ結果"
+                  alt="トリミング結果"
                   className="max-h-80 max-w-full object-contain"
                   src={previewUrl}
                   style={{ width: 'auto', height: 'auto' }}
