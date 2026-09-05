@@ -1,0 +1,68 @@
+@import url("https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;600;700&display=swap");
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Noto Sans JP", sans-serif;
+  --color-canvas: #f4f6f8;
+  --color-panel: #ffffff;
+  --color-soft: #eef1f4;
+  --color-line: #d8dde3;
+  --color-ink: #20252b;
+  --color-muted: #667085;
+  --color-accent: #2f6f5e;
+  --color-accent-strong: #285d50;
+  --color-danger: #b42318;
+  --color-success: #067647;
+}
+
+@layer base {
+  * {
+    box-sizing: border-box;
+  }
+  html {
+    color-scheme: light;
+  }
+  body {
+    min-width: 1024px;
+    min-height: 100vh;
+    background: var(--color-canvas);
+    font-family: var(--font-sans);
+  }
+  body,
+  h1,
+  h2,
+  h3,
+  p {
+    margin: 0;
+  }
+  button,
+  input,
+  textarea,
+  select {
+    font: inherit;
+  }
+  button {
+    cursor: pointer;
+  }
+}
+
+@layer components {
+  .button-primary {
+    @apply inline-flex items-center justify-center gap-2 rounded-md bg-accent px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-accent-strong disabled:cursor-not-allowed disabled:opacity-50;
+  }
+  .button-secondary {
+    @apply inline-flex items-center justify-center gap-2 rounded-md border border-line bg-panel px-4 py-2.5 text-sm font-medium text-ink transition-colors hover:bg-soft;
+  }
+  .icon-button {
+    @apply inline-flex size-9 items-center justify-center rounded-md border border-line bg-panel text-muted transition-colors hover:bg-soft hover:text-ink disabled:cursor-not-allowed disabled:opacity-50;
+  }
+  .page-title {
+    @apply text-2xl font-semibold tracking-tight;
+  }
+  .field-label {
+    @apply text-xs font-medium text-muted;
+  }
+  .field-input {
+    @apply w-full rounded-md border border-line bg-panel px-3 py-2.5 text-sm text-ink outline-none transition-colors placeholder:text-muted/60 focus:border-accent focus:ring-2 focus:ring-accent/10;
+  }
+}
