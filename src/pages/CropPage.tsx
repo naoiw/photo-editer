@@ -33,8 +33,8 @@ const FILL_OPTIONS = Object.entries(FILL_COLORS) as [FillColorId, (typeof FILL_C
 export function CropPage() {
   const [file, setFile] = useState<File | null>(null)
   const [meta, setMeta] = useState<ImageMeta | null>(null)
-  const [width, setWidth] = useState(800)
-  const [height, setHeight] = useState(600)
+  const [width, setWidth] = useState(828)
+  const [height, setHeight] = useState(1154)
   const [cropRect, setCropRect] = useState<CropRect | null>(null)
   const [fillColor, setFillColor] = useState<FillColorId>('black')
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
