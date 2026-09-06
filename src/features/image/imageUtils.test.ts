@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   clampImageScale,
   filenameWithoutExtension,
+  getCoverScale,
   getPixelCropRect,
   getScaledSourceSize,
   getSourceIntersection,
@@ -36,6 +37,20 @@ describe('image utilities', () => {
     expect(clamped.height).toBe(300)
   })
 
+  it('lets a smaller source travel across a larger crop', () => {
+    const left = softClampCropRect({ x: -800, y: -800, width: 800, height: 800 }, 200, 200, 0.25)
+    expect(left.x).toBeCloseTo(-650)
+    expect(left.y).toBeCloseTo(-650)
+
+    const right = softClampCropRect({ x: 200, y: 200, width: 800, height: 800 }, 200, 200, 0.25)
+    expect(right.x).toBeCloseTo(50)
+    expect(right.y).toBeCloseTo(50)
+
+    const inside = softClampCropRect({ x: -300, y: -120, width: 800, height: 800 }, 200, 200, 0.25)
+    expect(inside.x).toBeCloseTo(-300)
+    expect(inside.y).toBeCloseTo(-120)
+  })
+
   it('maps the visible source intersection into crop-local coordinates', () => {
     expect(getSourceIntersection({ x: -50, y: -20, width: 200, height: 100 }, 800, 600)).toEqual({
       sx: 0,
@@ -67,6 +82,13 @@ describe('image utilities', () => {
   it('scales source dimensions by the clamped factor', () => {
     expect(getScaledSourceSize(800, 600, 2)).toEqual({ width: 1600, height: 1200 })
     expect(getScaledSourceSize(800, 600, 0.1)).toEqual({ width: 200, height: 150 })
+  })
+
+  it('computes a cover scale clamped to 25%–800%', () => {
+    expect(getCoverScale(800, 600, 400, 400)).toBe(0.65)
+    expect(getCoverScale(100, 100, 400, 400)).toBe(4)
+    expect(getCoverScale(50, 50, 1000, 1000)).toBe(8)
+    expect(getCoverScale(0, 100, 400, 400)).toBe(1)
   })
 
   it('keeps the crop focused on the same source point after scaling', () => {

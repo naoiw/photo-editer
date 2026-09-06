@@ -1,10 +1,17 @@
-import { canvasToBlob } from '../image/imageUtils'
+import {
+  canvasToBlob,
+  clampImageScale,
+  getPixelCropRect,
+  getScaledSourceSize,
+  softClampCropRect,
+  type CropRect,
+} from '../image/imageUtils'
 
 export type ComposeOptions = {
-  /** 出力キャンバスの幅。未指定時は背景画像の幅を使用 */
-  width?: number
-  /** 出力キャンバスの高さ。未指定時は背景画像の高さを使用 */
-  height?: number
+  /** 背景の拡大率。未指定時は 1 */
+  scale?: number
+  /** 拡大後背景上の、フレームに写す矩形。未指定時は中央配置 */
+  cropRect?: CropRect
 }
 
 export async function composeBackgroundAndFrame(
@@ -18,8 +25,19 @@ export async function composeBackgroundAndFrame(
   ])
 
   try {
-    const width = Math.max(1, Math.floor(options.width ?? background.width))
-    const height = Math.max(1, Math.floor(options.height ?? background.height))
+    const width = Math.max(1, frame.width)
+    const height = Math.max(1, frame.height)
+    const scale = clampImageScale(options.scale ?? 1)
+    const scaled = getScaledSourceSize(background.width, background.height, scale)
+    const crop = softClampCropRect(
+      {
+        ...(options.cropRect ?? getPixelCropRect(scaled.width, scaled.height, width, height)),
+        width,
+        height,
+      },
+      scaled.width,
+      scaled.height,
+    )
 
     const canvas = document.createElement('canvas')
     canvas.width = width
@@ -27,12 +45,26 @@ export async function composeBackgroundAndFrame(
     const context = canvas.getContext('2d')
     if (!context) throw new Error('画像合成を開始できませんでした。')
 
-    context.drawImage(background, 0, 0, width, height)
-    context.drawImage(frame, 0, 0, width, height)
+    context.clearRect(0, 0, width, height)
+    context.imageSmoothingEnabled = scale !== 1
+    context.imageSmoothingQuality = 'high'
+    context.drawImage(
+      background,
+      0,
+      0,
+      background.width,
+      background.height,
+      -crop.x,
+      -crop.y,
+      scaled.width,
+      scaled.height,
+    )
+    context.drawImage(frame, 0, 0)
 
     return {
       blob: await canvasToBlob(canvas),
       outputSize: { width, height },
+      cropRect: crop,
     }
   } finally {
     background.close()

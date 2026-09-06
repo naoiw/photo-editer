@@ -12,7 +12,7 @@ const tools = [
   {
     to: '/compose',
     title: '背景とフレームの合成',
-    description: '背景画像の上にフレーム画像を重ねて、1枚の画像として書き出します。',
+    description: 'フレームのサイズに合わせ、背景の位置と大きさを調整して1枚の画像に合成します。',
     icon: LayersIntersect,
   },
 ] as const

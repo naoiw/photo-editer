@@ -54,11 +54,12 @@ export function softClampCropRect(
 ): CropRect {
   const width = Math.max(1, crop.width)
   const height = Math.max(1, crop.height)
-  const overhangX = width * maxOverhangRatio
-  const overhangY = height * maxOverhangRatio
+  const ratio = Math.min(1, Math.max(0, maxOverhangRatio))
+  const minVisibleX = Math.min(Math.max(0, sourceWidth), width) * (1 - ratio)
+  const minVisibleY = Math.min(Math.max(0, sourceHeight), height) * (1 - ratio)
   return {
-    x: Math.min(Math.max(-overhangX, crop.x), sourceWidth - width + overhangX),
-    y: Math.min(Math.max(-overhangY, crop.y), sourceHeight - height + overhangY),
+    x: Math.min(Math.max(minVisibleX - width, crop.x), sourceWidth - minVisibleX),
+    y: Math.min(Math.max(minVisibleY - height, crop.y), sourceHeight - minVisibleY),
     width,
     height,
   }
@@ -77,6 +78,17 @@ export function getScaledSourceSize(sourceWidth: number, sourceHeight: number, s
     width: sourceWidth * clamped,
     height: sourceHeight * clamped,
   }
+}
+
+/** 出力矩形を覆う（cover）最小の拡大率 */
+export function getCoverScale(
+  sourceWidth: number,
+  sourceHeight: number,
+  destWidth: number,
+  destHeight: number,
+) {
+  if (sourceWidth <= 0 || sourceHeight <= 0 || destWidth <= 0 || destHeight <= 0) return 1
+  return clampImageScale(Math.max(destWidth / sourceWidth, destHeight / sourceHeight))
 }
 
 /** 拡大縮小後も、枠の中心が同じ元画像上の点を指すように位置を付け替える */

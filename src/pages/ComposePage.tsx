@@ -1,25 +1,49 @@
-import { IconDownload as Download } from '@tabler/icons-react'
-import { useEffect, useState } from 'react'
+import { IconDownload as Download, IconMinus as Minus, IconPlus as Plus } from '@tabler/icons-react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { AppShell } from '../components/AppShell'
 import { Notice } from '../components/Feedback'
 import { ImageFilePicker } from '../components/ImageFilePicker'
 import { composeBackgroundAndFrame } from '../features/compose/composeImage'
-import { downloadBlob, filenameWithoutExtension, IMAGE_EXPORT_EXTENSION } from '../features/image/imageUtils'
+import {
+  IMAGE_EXPORT_EXTENSION,
+  IMAGE_SCALE_MAX,
+  IMAGE_SCALE_MIN,
+  IMAGE_SCALE_STEP,
+  clampImageScale,
+  downloadBlob,
+  filenameWithoutExtension,
+  getCoverScale,
+  getPixelCropRect,
+  getScaledSourceSize,
+  rescaleCropRect,
+  softClampCropRect,
+  type CropRect,
+} from '../features/image/imageUtils'
 import { useObjectUrl } from '../hooks/useObjectUrl'
+
+type ImageMeta = {
+  width: number
+  height: number
+}
 
 export function ComposePage() {
   const [backgroundFile, setBackgroundFile] = useState<File | null>(null)
   const [frameFile, setFrameFile] = useState<File | null>(null)
-  const [width, setWidth] = useState<number | ''>('')
-  const [height, setHeight] = useState<number | ''>('')
+  const [backgroundMeta, setBackgroundMeta] = useState<ImageMeta | null>(null)
+  const [frameMeta, setFrameMeta] = useState<ImageMeta | null>(null)
+  const [cropRect, setCropRect] = useState<CropRect | null>(null)
+  const [imageScale, setImageScale] = useState(1)
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
   const [error, setError] = useState('')
   const [processing, setProcessing] = useState(false)
-  const [backgroundMeta, setBackgroundMeta] = useState<{ width: number; height: number } | null>(null)
 
   const backgroundUrl = useObjectUrl(backgroundFile)
   const frameUrl = useObjectUrl(frameFile)
+  const dragState = useRef<{ startX: number; startY: number; origin: CropRect } | null>(null)
+  const stageRef = useRef<HTMLDivElement>(null)
+  const imageScaleRef = useRef(imageScale)
+  imageScaleRef.current = imageScale
 
   useEffect(() => {
     if (!backgroundFile) {
@@ -33,8 +57,6 @@ export function ComposePage() {
         return
       }
       setBackgroundMeta({ width: bitmap.width, height: bitmap.height })
-      setWidth((current) => (current === '' ? bitmap.width : current))
-      setHeight((current) => (current === '' ? bitmap.height : current))
       bitmap.close()
     }).catch(() => {
       if (!cancelled) setError('背景画像を読み込めませんでした。')
@@ -45,10 +67,72 @@ export function ComposePage() {
   }, [backgroundFile])
 
   useEffect(() => {
+    if (!frameFile) {
+      setFrameMeta(null)
+      return
+    }
+    let cancelled = false
+    void createImageBitmap(frameFile).then((bitmap) => {
+      if (cancelled) {
+        bitmap.close()
+        return
+      }
+      setFrameMeta({ width: bitmap.width, height: bitmap.height })
+      bitmap.close()
+    }).catch(() => {
+      if (!cancelled) setError('フレーム画像を読み込めませんでした。')
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [frameFile])
+
+  useEffect(() => {
+    if (!backgroundMeta || !frameMeta) {
+      setCropRect(null)
+      imageScaleRef.current = 1
+      setImageScale(1)
+      return
+    }
+    const cover = getCoverScale(backgroundMeta.width, backgroundMeta.height, frameMeta.width, frameMeta.height)
+    imageScaleRef.current = cover
+    setImageScale(cover)
+    const scaled = getScaledSourceSize(backgroundMeta.width, backgroundMeta.height, cover)
+    setCropRect(getPixelCropRect(scaled.width, scaled.height, frameMeta.width, frameMeta.height))
+  }, [backgroundMeta, frameMeta])
+
+  useEffect(() => {
     return () => {
       if (previewUrl) URL.revokeObjectURL(previewUrl)
     }
   }, [previewUrl])
+
+  const applyImageScale = useCallback((nextScale: number) => {
+    const current = imageScaleRef.current
+    const clamped = clampImageScale(nextScale)
+    if (clamped === current) return
+    imageScaleRef.current = clamped
+    setImageScale(clamped)
+    setCropRect((currentRect) => {
+      if (!currentRect || !backgroundMeta) return currentRect
+      return rescaleCropRect(currentRect, current, clamped, backgroundMeta.width, backgroundMeta.height)
+    })
+  }, [backgroundMeta])
+
+  const canAdjust = Boolean(backgroundUrl && frameUrl && backgroundMeta && frameMeta && cropRect)
+
+  useEffect(() => {
+    const stage = stageRef.current
+    if (!stage || !canAdjust) return
+
+    const onWheel = (event: WheelEvent) => {
+      event.preventDefault()
+      applyImageScale(imageScaleRef.current + (event.deltaY < 0 ? IMAGE_SCALE_STEP : -IMAGE_SCALE_STEP))
+    }
+
+    stage.addEventListener('wheel', onWheel, { passive: false })
+    return () => stage.removeEventListener('wheel', onWheel)
+  }, [applyImageScale, canAdjust])
 
   function clearPreview() {
     if (previewUrl) URL.revokeObjectURL(previewUrl)
@@ -56,13 +140,13 @@ export function ComposePage() {
   }
 
   async function runCompose(download: boolean) {
-    if (!backgroundFile || !frameFile) return
+    if (!backgroundFile || !frameFile || !cropRect) return
     setProcessing(true)
     setError('')
     try {
       const result = await composeBackgroundAndFrame(backgroundFile, frameFile, {
-        width: width === '' ? undefined : width,
-        height: height === '' ? undefined : height,
+        scale: imageScale,
+        cropRect,
       })
       clearPreview()
       const url = URL.createObjectURL(result.blob)
@@ -79,13 +163,40 @@ export function ComposePage() {
     }
   }
 
+  const scaled = backgroundMeta ? getScaledSourceSize(backgroundMeta.width, backgroundMeta.height, imageScale) : null
+
+  function updateBackgroundFromPointer(clientX: number, clientY: number, display: HTMLElement) {
+    if (!dragState.current || !scaled || !frameMeta) return
+    const bounds = display.getBoundingClientRect()
+    const scaleX = frameMeta.width / bounds.width
+    const scaleY = frameMeta.height / bounds.height
+    const deltaX = (clientX - dragState.current.startX) * scaleX
+    const deltaY = (clientY - dragState.current.startY) * scaleY
+    setCropRect(softClampCropRect({
+      ...dragState.current.origin,
+      x: dragState.current.origin.x - deltaX,
+      y: dragState.current.origin.y - deltaY,
+    }, scaled.width, scaled.height))
+  }
+
+  const backgroundStyle = scaled && cropRect && frameMeta
+    ? {
+        left: `${(-cropRect.x / frameMeta.width) * 100}%`,
+        top: `${(-cropRect.y / frameMeta.height) * 100}%`,
+        width: `${(scaled.width / frameMeta.width) * 100}%`,
+        height: `${(scaled.height / frameMeta.height) * 100}%`,
+        maxWidth: 'none',
+        maxHeight: 'none',
+      }
+    : undefined
+
   return (
     <AppShell>
       <div className="flex items-end justify-between gap-6">
         <div className="grid gap-2">
           <h1 className="page-title">背景とフレームの合成</h1>
           <p className="text-sm text-muted">
-            背景の上にフレーム（透過PNG推奨）を重ねて書き出します。出力サイズは任意で指定できます。
+            出力サイズはフレーム画像に合わせます。プレビュー上で背景の位置と大きさを調整できます。
           </p>
         </div>
         <Link className="button-secondary no-underline" to="/">ホームへ戻る</Link>
@@ -93,7 +204,7 @@ export function ComposePage() {
 
       {error ? <Notice>{error}</Notice> : null}
 
-      <section className="grid grid-cols-[1fr_1.1fr] gap-6">
+      <section className="grid grid-cols-[1fr_1.2fr] gap-6">
         <div className="grid content-start gap-5 rounded-lg border border-line bg-panel p-6">
           <ImageFilePicker
             fileName={backgroundFile?.name}
@@ -118,40 +229,11 @@ export function ComposePage() {
             previewUrl={frameUrl}
           />
 
-          <div className="grid grid-cols-2 gap-4">
-            <label className="grid gap-2">
-              <span className="field-label">出力幅 (px)</span>
-              <input
-                className="field-input"
-                min={1}
-                onChange={(event) => {
-                  const value = event.target.value
-                  setWidth(value === '' ? '' : Math.max(1, Number(value) || 1))
-                }}
-                placeholder={backgroundMeta ? String(backgroundMeta.width) : '自動'}
-                type="number"
-                value={width}
-              />
-            </label>
-            <label className="grid gap-2">
-              <span className="field-label">出力高さ (px)</span>
-              <input
-                className="field-input"
-                min={1}
-                onChange={(event) => {
-                  const value = event.target.value
-                  setHeight(value === '' ? '' : Math.max(1, Number(value) || 1))
-                }}
-                placeholder={backgroundMeta ? String(backgroundMeta.height) : '自動'}
-                type="number"
-                value={height}
-              />
-            </label>
-          </div>
-
-          {backgroundMeta ? (
+          {backgroundMeta || frameMeta ? (
             <p className="text-xs text-muted">
-              背景画像: {backgroundMeta.width} × {backgroundMeta.height} px
+              {backgroundMeta ? `背景画像: ${backgroundMeta.width} × ${backgroundMeta.height} px` : null}
+              {backgroundMeta && frameMeta ? ' ／ ' : null}
+              {frameMeta ? `フレーム（出力）: ${frameMeta.width} × ${frameMeta.height} px` : null}
             </p>
           ) : null}
         </div>
@@ -159,10 +241,107 @@ export function ComposePage() {
         <div className="grid gap-4 rounded-lg border border-line bg-panel p-6">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <h2 className="text-sm font-semibold">合成プレビュー</h2>
-            <div className="flex gap-3">
+            {canAdjust ? (
+              <div className="flex items-center gap-1">
+                <button
+                  aria-label="背景を縮小"
+                  className="icon-button"
+                  disabled={imageScale <= IMAGE_SCALE_MIN}
+                  onClick={() => applyImageScale(imageScale - IMAGE_SCALE_STEP)}
+                  type="button"
+                >
+                  <Minus size={16} />
+                </button>
+                <input
+                  aria-label="背景の拡大率"
+                  className="w-24 accent-accent"
+                  max={IMAGE_SCALE_MAX}
+                  min={IMAGE_SCALE_MIN}
+                  onChange={(event) => applyImageScale(Number(event.target.value))}
+                  step={IMAGE_SCALE_STEP}
+                  type="range"
+                  value={imageScale}
+                />
+                <button
+                  className="min-w-14 rounded-md px-1 py-1.5 text-xs font-medium text-ink hover:bg-soft"
+                  onClick={() => applyImageScale(1)}
+                  title="100%に戻す"
+                  type="button"
+                >
+                  {Math.round(imageScale * 100)}%
+                </button>
+                <button
+                  aria-label="背景を拡大"
+                  className="icon-button"
+                  disabled={imageScale >= IMAGE_SCALE_MAX}
+                  onClick={() => applyImageScale(imageScale + IMAGE_SCALE_STEP)}
+                  type="button"
+                >
+                  <Plus size={16} />
+                </button>
+              </div>
+            ) : null}
+          </div>
+
+          {canAdjust && backgroundUrl && frameUrl && frameMeta && cropRect ? (
+            <div
+              className="relative mx-auto overflow-hidden rounded-md select-none"
+              onPointerCancel={() => {
+                dragState.current = null
+              }}
+              onPointerDown={(event) => {
+                event.currentTarget.setPointerCapture(event.pointerId)
+                dragState.current = {
+                  startX: event.clientX,
+                  startY: event.clientY,
+                  origin: cropRect,
+                }
+              }}
+              onPointerMove={(event) => {
+                updateBackgroundFromPointer(event.clientX, event.clientY, event.currentTarget)
+              }}
+              onPointerUp={() => {
+                dragState.current = null
+              }}
+              ref={stageRef}
+              style={{
+                aspectRatio: `${frameMeta.width} / ${frameMeta.height}`,
+                background: 'repeating-conic-gradient(#d8dde3 0% 25%, #ffffff 0% 50%) 50% / 16px 16px',
+                cursor: 'move',
+                maxHeight: '28rem',
+                width: `min(100%, calc(28rem * ${frameMeta.width} / ${frameMeta.height}))`,
+              }}
+            >
+              <img
+                alt=""
+                className="absolute block max-h-none max-w-none object-fill"
+                draggable={false}
+                src={backgroundUrl}
+                style={backgroundStyle}
+              />
+              <img
+                alt=""
+                className="pointer-events-none absolute inset-0 size-full object-fill"
+                draggable={false}
+                src={frameUrl}
+              />
+            </div>
+          ) : (
+            <div className="grid min-h-72 place-items-center rounded-md border border-dashed border-line bg-soft text-sm text-muted">
+              背景とフレームを選択すると、ここにフレームサイズのプレビューが表示されます。
+            </div>
+          )}
+
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            {canAdjust ? (
+              <p className="text-xs text-muted">
+                プレビューの大きさはフレーム画像と同じ比率です。背景をドラッグして位置を変え、スライダーやホイールで大きさを合わせられます。
+              </p>
+            ) : null}
+            <div className="ml-auto flex gap-3">
               <button
                 className="button-secondary"
-                disabled={!backgroundFile || !frameFile || processing}
+                disabled={!backgroundFile || !frameFile || !cropRect || processing}
                 onClick={() => void runCompose(false)}
                 type="button"
               >
@@ -170,7 +349,7 @@ export function ComposePage() {
               </button>
               <button
                 className="button-primary"
-                disabled={!backgroundFile || !frameFile || processing}
+                disabled={!backgroundFile || !frameFile || !cropRect || processing}
                 onClick={() => void runCompose(true)}
                 type="button"
               >
@@ -179,22 +358,24 @@ export function ComposePage() {
               </button>
             </div>
           </div>
+
           {previewUrl ? (
-            <div className="grid place-items-center overflow-hidden rounded-md bg-soft p-4">
-              <img alt="合成結果" className="max-h-[28rem] max-w-full object-contain" src={previewUrl} />
-            </div>
-          ) : backgroundUrl && frameUrl ? (
-            <div className="relative grid place-items-center overflow-hidden rounded-md bg-soft p-4">
-              <div className="relative inline-grid max-h-[28rem] max-w-full">
-                <img alt="" className="col-start-1 row-start-1 max-h-[28rem] max-w-full object-contain" src={backgroundUrl} />
-                <img alt="" className="col-start-1 row-start-1 max-h-[28rem] max-w-full object-contain" src={frameUrl} />
+            <div className="grid gap-2">
+              <h3 className="text-xs font-medium text-muted">書き出し結果</h3>
+              <div
+                className="grid place-items-center overflow-hidden rounded-md p-4"
+                style={{
+                  background: 'repeating-conic-gradient(#d8dde3 0% 25%, #ffffff 0% 50%) 50% / 16px 16px',
+                }}
+              >
+                <img
+                  alt="合成結果"
+                  className="max-h-80 max-w-full object-contain"
+                  src={previewUrl}
+                />
               </div>
             </div>
-          ) : (
-            <div className="grid min-h-72 place-items-center rounded-md border border-dashed border-line bg-soft text-sm text-muted">
-              背景とフレームを選択すると、ここに重ね合わせの目安が表示されます。
-            </div>
-          )}
+          ) : null}
         </div>
       </section>
     </AppShell>
