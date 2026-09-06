@@ -6,6 +6,7 @@ import { Notice } from '../components/Feedback'
 import { ImageFilePicker } from '../components/ImageFilePicker'
 import { composeBackgroundAndFrame } from '../features/compose/composeImage'
 import {
+  FILL_COLORS,
   IMAGE_EXPORT_EXTENSION,
   IMAGE_SCALE_MAX,
   IMAGE_SCALE_MIN,
@@ -19,6 +20,7 @@ import {
   rescaleCropRect,
   softClampCropRect,
   type CropRect,
+  type FillColorId,
 } from '../features/image/imageUtils'
 import { useObjectUrl } from '../hooks/useObjectUrl'
 
@@ -27,6 +29,8 @@ type ImageMeta = {
   height: number
 }
 
+const FILL_OPTIONS = Object.entries(FILL_COLORS) as [FillColorId, (typeof FILL_COLORS)[FillColorId]][]
+
 export function ComposePage() {
   const [backgroundFile, setBackgroundFile] = useState<File | null>(null)
   const [frameFile, setFrameFile] = useState<File | null>(null)
@@ -34,6 +38,7 @@ export function ComposePage() {
   const [frameMeta, setFrameMeta] = useState<ImageMeta | null>(null)
   const [cropRect, setCropRect] = useState<CropRect | null>(null)
   const [imageScale, setImageScale] = useState(1)
+  const [fillColor, setFillColor] = useState<FillColorId>('black')
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
   const [error, setError] = useState('')
   const [processing, setProcessing] = useState(false)
@@ -147,6 +152,7 @@ export function ComposePage() {
       const result = await composeBackgroundAndFrame(backgroundFile, frameFile, {
         scale: imageScale,
         cropRect,
+        fillColor,
       })
       clearPreview()
       const url = URL.createObjectURL(result.blob)
@@ -189,6 +195,8 @@ export function ComposePage() {
         maxHeight: 'none',
       }
     : undefined
+
+  const fillPreview = FILL_COLORS[fillColor]
 
   return (
     <AppShell>
@@ -238,6 +246,29 @@ export function ComposePage() {
             }}
             previewUrl={frameUrl}
           />
+
+          <div className="grid gap-2">
+            <span className="field-label">はみ出し部分の背景色</span>
+            <div className="flex flex-wrap gap-2">
+              {FILL_OPTIONS.map(([id, option]) => (
+                <button
+                  aria-label={option.label}
+                  aria-pressed={fillColor === id}
+                  className={`grid size-9 place-items-center rounded-md border transition-colors ${fillColor === id ? 'border-accent ring-2 ring-accent/20' : 'border-line'}`}
+                  key={id}
+                  onClick={() => setFillColor(id)}
+                  style={{
+                    background: id === 'transparent'
+                      ? 'repeating-conic-gradient(#d8dde3 0% 25%, #ffffff 0% 50%) 50% / 10px 10px'
+                      : option.css,
+                  }}
+                  title={option.label}
+                  type="button"
+                />
+              ))}
+            </div>
+            <p className="text-xs text-muted">選択中: {fillPreview.label}</p>
+          </div>
 
           {backgroundMeta || frameMeta ? (
             <p className="text-xs text-muted">
@@ -316,7 +347,9 @@ export function ComposePage() {
               ref={stageRef}
               style={{
                 aspectRatio: `${frameMeta.width} / ${frameMeta.height}`,
-                background: 'repeating-conic-gradient(#d8dde3 0% 25%, #ffffff 0% 50%) 50% / 16px 16px',
+                background: fillColor === 'transparent'
+                  ? 'repeating-conic-gradient(#d8dde3 0% 25%, #ffffff 0% 50%) 50% / 16px 16px'
+                  : fillPreview.css,
                 cursor: 'move',
                 maxHeight: '28rem',
                 width: `min(100%, calc(28rem * ${frameMeta.width} / ${frameMeta.height}))`,
@@ -375,7 +408,9 @@ export function ComposePage() {
               <div
                 className="grid place-items-center overflow-hidden rounded-md p-4"
                 style={{
-                  background: 'repeating-conic-gradient(#d8dde3 0% 25%, #ffffff 0% 50%) 50% / 16px 16px',
+                  background: fillColor === 'transparent'
+                    ? 'repeating-conic-gradient(#d8dde3 0% 25%, #ffffff 0% 50%) 50% / 16px 16px'
+                    : '#eef1f4',
                 }}
               >
                 <img
