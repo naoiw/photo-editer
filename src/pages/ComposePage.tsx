@@ -1,4 +1,4 @@
-import { IconDownload as Download, IconMinus as Minus, IconPlus as Plus } from '@tabler/icons-react'
+import { IconDownload as Download, IconEye as Eye, IconEyeOff as EyeOff, IconMinus as Minus, IconPlus as Plus } from '@tabler/icons-react'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { AppShell } from '../components/AppShell'
@@ -39,6 +39,7 @@ export function ComposePage() {
   const [cropRect, setCropRect] = useState<CropRect | null>(null)
   const [imageScale, setImageScale] = useState(1)
   const [fillColor, setFillColor] = useState<FillColorId>('black')
+  const [frameHidden, setFrameHidden] = useState(false)
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
   const [error, setError] = useState('')
   const [processing, setProcessing] = useState(false)
@@ -74,6 +75,7 @@ export function ComposePage() {
   useEffect(() => {
     if (!frameFile) {
       setFrameMeta(null)
+      setFrameHidden(false)
       return
     }
     let cancelled = false
@@ -234,6 +236,22 @@ export function ComposePage() {
             fileName={frameFile?.name}
             hint="透過PNG / WebP 推奨"
             label="フレーム画像"
+            actions={frameFile ? (
+              <button
+                aria-label={frameHidden ? 'フレームを表示' : 'フレームを非表示'}
+                aria-pressed={frameHidden}
+                className={`inline-flex size-9 items-center justify-center rounded-md transition-colors ${frameHidden ? 'bg-accent/10 text-accent' : 'text-muted hover:bg-soft hover:text-ink'}`}
+                onClick={(event) => {
+                  event.preventDefault()
+                  event.stopPropagation()
+                  setFrameHidden((current) => !current)
+                }}
+                title={frameHidden ? 'フレームを表示' : 'フレームを非表示'}
+                type="button"
+              >
+                {frameHidden ? <Eye size={18} /> : <EyeOff size={18} />}
+              </button>
+            ) : undefined}
             onClear={() => {
               setError('')
               setFrameFile(null)
@@ -242,6 +260,7 @@ export function ComposePage() {
             onSelect={(file) => {
               setError('')
               setFrameFile(file)
+              setFrameHidden(false)
               clearPreview()
             }}
             previewUrl={frameUrl}
@@ -362,12 +381,14 @@ export function ComposePage() {
                 src={backgroundUrl}
                 style={backgroundStyle}
               />
-              <img
-                alt=""
-                className="pointer-events-none absolute inset-0 size-full object-fill"
-                draggable={false}
-                src={frameUrl}
-              />
+              {frameHidden ? null : (
+                <img
+                  alt=""
+                  className="pointer-events-none absolute inset-0 size-full object-fill"
+                  draggable={false}
+                  src={frameUrl}
+                />
+              )}
             </div>
           ) : (
             <div className="grid min-h-72 place-items-center rounded-md border border-dashed border-line bg-soft text-sm text-muted">

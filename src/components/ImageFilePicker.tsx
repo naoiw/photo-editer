@@ -1,5 +1,5 @@
 import { IconTrash as Trash, IconUpload as Upload } from '@tabler/icons-react'
-import { useId, useRef, useState } from 'react'
+import { useId, useRef, useState, type ReactNode } from 'react'
 
 type ImageFilePickerProps = {
   label: string
@@ -9,6 +9,7 @@ type ImageFilePickerProps = {
   previewUrl?: string | null
   onSelect: (file: File) => void
   onClear?: () => void
+  actions?: ReactNode
 }
 
 export function ImageFilePicker({
@@ -19,11 +20,13 @@ export function ImageFilePicker({
   previewUrl,
   onSelect,
   onClear,
+  actions,
 }: ImageFilePickerProps) {
   const inputId = useId()
   const inputRef = useRef<HTMLInputElement>(null)
   const [dragging, setDragging] = useState(false)
   const canClear = Boolean(onClear && (fileName || previewUrl))
+  const showToolbar = Boolean(canClear || actions)
 
   function handleFiles(files: FileList | null) {
     const file = files?.[0]
@@ -57,7 +60,7 @@ export function ImageFilePicker({
             <span className="grid size-10 shrink-0 place-items-center rounded-md bg-soft text-accent">
               <Upload size={18} />
             </span>
-            <div className="grid gap-1 pr-10">
+            <div className={`grid gap-1 ${showToolbar ? 'pr-20' : ''}`}>
               <strong className="text-sm font-medium text-ink">
                 {fileName ?? '画像を選択、またはドロップ'}
               </strong>
@@ -70,20 +73,25 @@ export function ImageFilePicker({
             </div>
           ) : null}
         </button>
-        {canClear ? (
-          <button
-            aria-label={`${label}を削除`}
-            className="absolute top-3 right-3 inline-flex size-9 items-center justify-center rounded-md text-danger transition-colors hover:bg-danger/10"
-            onClick={(event) => {
-              event.preventDefault()
-              event.stopPropagation()
-              onClear?.()
-            }}
-            title={`${label}を削除`}
-            type="button"
-          >
-            <Trash size={18} />
-          </button>
+        {showToolbar ? (
+          <div className="absolute top-3 right-3 flex items-center">
+            {actions}
+            {canClear ? (
+              <button
+                aria-label={`${label}を削除`}
+                className="inline-flex size-9 items-center justify-center rounded-md text-danger transition-colors hover:bg-danger/10"
+                onClick={(event) => {
+                  event.preventDefault()
+                  event.stopPropagation()
+                  onClear?.()
+                }}
+                title={`${label}を削除`}
+                type="button"
+              >
+                <Trash size={18} />
+              </button>
+            ) : null}
+          </div>
         ) : null}
       </div>
       <input
