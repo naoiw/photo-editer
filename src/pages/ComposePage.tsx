@@ -209,6 +209,11 @@ export function ComposePage() {
           <ImageFilePicker
             fileName={backgroundFile?.name}
             label="背景画像"
+            onClear={() => {
+              setError('')
+              setBackgroundFile(null)
+              clearPreview()
+            }}
             onSelect={(file) => {
               setError('')
               setBackgroundFile(file)
@@ -221,6 +226,11 @@ export function ComposePage() {
             fileName={frameFile?.name}
             hint="透過PNG / WebP 推奨"
             label="フレーム画像"
+            onClear={() => {
+              setError('')
+              setFrameFile(null)
+              clearPreview()
+            }}
             onSelect={(file) => {
               setError('')
               setFrameFile(file)

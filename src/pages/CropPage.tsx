@@ -209,6 +209,12 @@ export function CropPage() {
           <ImageFilePicker
             fileName={file?.name}
             label="元画像"
+            onClear={() => {
+              setError('')
+              setFile(null)
+              if (previewUrl) URL.revokeObjectURL(previewUrl)
+              setPreviewUrl(null)
+            }}
             onSelect={handleSelect}
             previewUrl={sourceUrl}
           />
