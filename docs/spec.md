@@ -15,7 +15,7 @@
 提供機能は次の 2 つです。
 
 - **トリミング**: 出力ピクセルサイズを指定し、切り抜き位置をドラッグで調整する
-- **背景とフレームの合成**: 背景画像の上にフレーム画像を重ね、1 枚の WebP として書き出す
+- **背景とフレームの合成**: 背景画像の上にフレーム画像を重ね、1 枚の PNG として書き出す
 
 ## 2. 技術スタック
 
@@ -96,10 +96,11 @@ photo-editer/
 
 | 定数 | 値 | 意味 |
 | --- | --- | --- |
-| `IMAGE_WEBP_QUALITY` | `0.92` | WebP 書き出し品質 |
+| `IMAGE_EXPORT_TYPE` | `image/png` | 既定の書き出し MIME |
+| `IMAGE_EXPORT_EXTENSION` | `png` | 既定の保存拡張子 |
+| `IMAGE_WEBP_QUALITY` | `0.92` | WebP を指定した場合の品質 |
 
-- 既定の MIME は `image/webp`
-- トリミングで塗りが「透明」のときのみ `image/png`
+- 既定の MIME は `image/png`
 - 保存は `<a download>` をクリックしてローカルダウンロードする
 
 ### 5.4 レイアウト・見た目
@@ -144,7 +145,7 @@ photo-editer/
 | `green` | 緑 | `#2f9e44` |
 | `transparent` | 透明 | Canvas は塗りなし（`clearRect` のみ） |
 
-透明選択時はチェッカーボードでプレビューし、保存ボタンラベルは「PNGで保存」。それ以外は「WebPで保存」。
+透明選択時はチェッカーボードでプレビューする。保存ボタンラベルは常に「PNGで保存」。
 
 ### 7.3 切り抜き枠の挙動
 
@@ -171,7 +172,7 @@ photo-editer/
 3. 切り抜き矩形の幅・高さを出力サイズに合わせ、拡大後サイズに対して `softClampCropRect` で位置を制限する。
 4. キャンバスを出力サイズで作り、透明以外なら全面を塗りつぶす。
 5. 元画像を拡大後サイズでキャンバスに描画し、切り抜き枠の左上をキャンバス原点に合わせる（`drawImage(..., -crop.x, -crop.y, scaledWidth, scaledHeight)`）。枠外や画像外は塗りが残る。拡大率が 1 のときはスムージングしない。
-6. 透明なら PNG、それ以外は WebP で Blob 化する。
+6. PNG で Blob 化する。
 7. `ImageBitmap.close()` で解放する。
 
 交差の写像:
@@ -184,7 +185,7 @@ photo-editer/
 | 操作 | 条件 | 結果 |
 | --- | --- | --- |
 | プレビュー | 画像選択済み、処理中でない | 結果をプレビュー表示。保存はしない |
-| PNG/WebPで保存 | 同上 | `{元ファイル名（拡張子除く）}-cropped.{png\|webp}` をダウンロードし、同じ結果をプレビューにも出す |
+| PNGで保存 | 同上 | `{元ファイル名（拡張子除く）}-cropped.png` をダウンロードし、同じ結果をプレビューにも出す |
 
 エラーメッセージ:
 
@@ -227,7 +228,7 @@ photo-editer/
 2. 出力幅 = `options.width`、未指定なら背景幅。高さ同様。いずれも 1 以上の整数に切り捨てる。
 3. キャンバスに背景を `0, 0, width, height` で描画（必要なら伸縮）。
 4. その上にフレームを同じ矩形で描画（必要なら伸縮、アルファ合成）。
-5. WebP（品質 0.92）で Blob 化する。
+5. PNG で Blob 化する。
 6. 両方の `ImageBitmap` を閉じる。
 
 ### 8.5 操作と出力
@@ -235,7 +236,7 @@ photo-editer/
 | 操作 | 条件 | 結果 |
 | --- | --- | --- |
 | プレビュー | 背景・フレーム選択済み、処理中でない | 合成結果を表示 |
-| WebPで保存 | 同上 | プレビュー更新に加え `{背景ファイル名（拡張子除く）}-composed.webp` をダウンロード |
+| PNGで保存 | 同上 | プレビュー更新に加え `{背景ファイル名（拡張子除く）}-composed.png` をダウンロード |
 
 エラーメッセージ:
 
@@ -256,7 +257,7 @@ photo-editer/
 | `rescaleCropRect(crop, from, to, sw, sh)` | 拡大率変更後も枠中心が同じ元画像点を指すよう位置を付け替える |
 | `getSourceIntersection(crop, sw, sh)` | 枠とソースの交差をソース座標と枠ローカル座標で返す。交差なしなら `null` |
 | `filenameWithoutExtension` | 末尾の拡張子（最後の `.` 以降）だけを除く。例: `photo.final.png` → `photo.final` |
-| `canvasToBlob(canvas, type='image/webp', quality=0.92)` | `toBlob` の Promise 化。失敗時は例外 |
+| `canvasToBlob(canvas, type='image/png', quality=0.92)` | `toBlob` の Promise 化。失敗時は例外。既定は PNG |
 | `loadImageBitmap` | `createImageBitmap` の薄いラッパ |
 | `downloadBlob` | Object URL を作り、ダウンロード後に即 revoke |
 | `revokeObjectUrl` | `null` / `undefined` は無視 |

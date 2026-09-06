@@ -5,7 +5,7 @@ import { AppShell } from '../components/AppShell'
 import { Notice } from '../components/Feedback'
 import { ImageFilePicker } from '../components/ImageFilePicker'
 import { composeBackgroundAndFrame } from '../features/compose/composeImage'
-import { downloadBlob, filenameWithoutExtension } from '../features/image/imageUtils'
+import { downloadBlob, filenameWithoutExtension, IMAGE_EXPORT_EXTENSION } from '../features/image/imageUtils'
 import { useObjectUrl } from '../hooks/useObjectUrl'
 
 export function ComposePage() {
@@ -69,7 +69,7 @@ export function ComposePage() {
       setPreviewUrl(url)
       if (download) {
         const base = filenameWithoutExtension(backgroundFile.name)
-        downloadBlob(result.blob, `${base}-composed.webp`)
+        downloadBlob(result.blob, `${base}-composed.${IMAGE_EXPORT_EXTENSION}`)
       }
     } catch (cause) {
       console.error(cause)
@@ -175,7 +175,7 @@ export function ComposePage() {
                 type="button"
               >
                 <Download size={16} />
-                WebPで保存
+                PNGで保存
               </button>
             </div>
           </div>

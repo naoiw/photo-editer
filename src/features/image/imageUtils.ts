@@ -1,3 +1,5 @@
+export const IMAGE_EXPORT_TYPE = 'image/png'
+export const IMAGE_EXPORT_EXTENSION = 'png'
 export const IMAGE_WEBP_QUALITY = 0.92
 export const CROP_MAX_OVERHANG_RATIO = 0.25
 export const IMAGE_SCALE_MIN = 0.25
@@ -119,7 +121,7 @@ export function filenameWithoutExtension(filename: string) {
   return filename.replace(/\.[^/.]+$/, '')
 }
 
-export function canvasToBlob(canvas: HTMLCanvasElement, type = 'image/webp', quality = IMAGE_WEBP_QUALITY) {
+export function canvasToBlob(canvas: HTMLCanvasElement, type = IMAGE_EXPORT_TYPE, quality = IMAGE_WEBP_QUALITY) {
   return new Promise<Blob>((resolve, reject) => {
     canvas.toBlob(
       (blob) => (blob ? resolve(blob) : reject(new Error('画像の書き出しに失敗しました。'))),

@@ -2,6 +2,7 @@ import {
   canvasToBlob,
   clampImageScale,
   FILL_COLORS,
+  IMAGE_EXPORT_EXTENSION,
   getPixelCropRect,
   getScaledSourceSize,
   softClampCropRect,
@@ -60,12 +61,11 @@ export async function cropImageToSize(
       scaled.height,
     )
 
-    const transparent = fillColor === 'transparent'
     return {
-      blob: await canvasToBlob(canvas, transparent ? 'image/png' : 'image/webp'),
+      blob: await canvasToBlob(canvas),
       cropRect: sourceCrop,
       outputSize: { width: outputWidth, height: outputHeight },
-      extension: transparent ? 'png' : 'webp',
+      extension: IMAGE_EXPORT_EXTENSION,
     }
   } finally {
     bitmap.close()

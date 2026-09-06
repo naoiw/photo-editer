@@ -188,7 +188,7 @@ export function CropPage() {
     : undefined
 
   const fillPreview = FILL_COLORS[fillColor]
-  const saveLabel = fillColor === 'transparent' ? 'PNGで保存' : 'WebPで保存'
+  const saveLabel = 'PNGで保存'
 
   return (
     <AppShell>
