@@ -272,7 +272,6 @@ photo-editer/
 | `getSourceIntersection(crop, sw, sh)` | 枠とソースの交差をソース座標と枠ローカル座標で返す。交差なしなら `null` |
 | `filenameWithoutExtension` | 末尾の拡張子（最後の `.` 以降）だけを除く。例: `photo.final.png` → `photo.final` |
 | `canvasToBlob(canvas, type='image/png', quality=0.92)` | `toBlob` の Promise 化。失敗時は例外。既定は PNG |
-| `loadImageBitmap` | `createImageBitmap` の薄いラッパ |
 | `downloadBlob` | Object URL を作り、ダウンロード後に即 revoke |
 | `revokeObjectUrl` | `null` / `undefined` は無視 |
 
