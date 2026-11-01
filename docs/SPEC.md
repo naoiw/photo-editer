@@ -41,18 +41,21 @@ photo-editor/
 ├── docs/                      # SPEC / DEVELOPMENT / DEPLOYMENT
 ├── src/
 │   ├── App.tsx                # ルート定義
-│   ├── main.tsx               # エントリ（StrictMode + BrowserRouter）
+│   ├── main.tsx               # エントリ（StrictMode + HashRouter）
 │   ├── styles.css             # テーマ・共通コンポーネントクラス
 │   ├── vite-env.d.ts
 │   ├── components/            # 共通 UI
 │   │   ├── AppShell.tsx
 │   │   ├── Feedback.tsx
-│   │   └── ImageFilePicker.tsx
+│   │   ├── ImageFilePicker.tsx
+│   │   ├── FillColorPicker.tsx
+│   │   ├── ImageScaleControls.tsx
+│   │   └── ToolPageHeader.tsx
 │   ├── features/
 │   │   ├── compose/composeImage.ts
 │   │   ├── crop/cropImage.ts
-│   │   └── image/             # 共通画像 utility とテスト
-│   ├── hooks/useObjectUrl.ts
+│   │   └── image/             # Canvas 共通処理・座標計算とテスト
+│   ├── hooks/                # useObjectUrl / useBlobPreview / useImageMetadata
 │   └── pages/
 │       ├── HomePage.tsx
 │       ├── CropPage.tsx
@@ -98,7 +101,6 @@ photo-editor/
 | --- | --- | --- |
 | `IMAGE_EXPORT_TYPE` | `image/png` | 既定の書き出し MIME |
 | `IMAGE_EXPORT_EXTENSION` | `png` | 既定の保存拡張子 |
-| `IMAGE_WEBP_QUALITY` | `0.92` | WebP を指定した場合の品質 |
 
 - 既定の MIME は `image/png`
 - 保存は `<a download>` をクリックしてローカルダウンロードする
@@ -108,7 +110,7 @@ photo-editor/
 - フォント: Inter / Noto Sans JP / システムフォント
 - `body` の最小幅は 320px。スマートフォンでは設定とプレビューを縦積み
 - 他の naoiw サイトと共通のダークテーマ（`color-scheme: dark`）
-- アクセントカラーは `#2f6f5e`
+- アクセントカラーは `#70ddc7`
 
 ## 6. ホーム
 
@@ -143,7 +145,7 @@ photo-editor/
 | `red` | 赤 | `#e03131` |
 | `blue` | 青 | `#1c7ed6` |
 | `green` | 緑 | `#2f9e44` |
-| `transparent` | 透明 | Canvas は塗りなし（`clearRect` のみ） |
+| `transparent` | 透明 | Canvas は塗りなし（新規キャンバスの透明背景を維持） |
 
 透明選択時はチェッカーボードでプレビューする。保存ボタンラベルは常に「PNGで保存」。
 
@@ -172,8 +174,8 @@ photo-editor/
 1. `createImageBitmap` で元画像を読む。
 2. 出力幅・高さを 1 以上の整数に切り捨てる。拡大率を `clampImageScale` する。
 3. 切り抜き矩形の幅・高さを出力サイズに合わせ、拡大後サイズに対して `softClampCropRect` で位置を制限する。
-4. キャンバスを出力サイズで作り、透明以外なら全面を塗りつぶす。
-5. 元画像を拡大後サイズでキャンバスに描画し、切り抜き枠の左上をキャンバス原点に合わせる（`drawImage(..., -crop.x, -crop.y, scaledWidth, scaledHeight)`）。枠外や画像外は塗りが残る。拡大率が 1 のときはスムージングしない。
+4. `createImageCanvas` でキャンバスを出力サイズで作り、透明以外なら全面を塗りつぶす。
+5. `drawImageAtCrop` で元画像を拡大後サイズでキャンバスに描画し、切り抜き枠の左上をキャンバス原点に合わせる（`drawImage(..., -crop.x, -crop.y, scaledWidth, scaledHeight)`）。枠外や画像外は塗りが残る。拡大率が 1 のときはスムージングしない。
 6. PNG で Blob 化する。
 7. `ImageBitmap.close()` で解放する。
 
@@ -234,11 +236,11 @@ photo-editor/
 
 ### 8.4 処理（`composeBackgroundAndFrame`）
 
-1. 背景・フレームを並列で `createImageBitmap` する。
+1. 背景・フレームを並列で `createImageBitmap` する。片方が失敗した場合も、成功した側の Bitmap を解放する。
 2. 出力幅・高さはフレーム画像のサイズ。
 3. 拡大率を `clampImageScale` し、拡大後サイズに対して `softClampCropRect` で位置を制限する。未指定時は中央配置。
-4. キャンバスをフレームサイズで作り、透明でクリアする。透明以外なら全面を塗りつぶす。
-5. 背景を拡大後サイズで描画し、フレーム矩形の左上をキャンバス原点に合わせる（`drawImage(..., -crop.x, -crop.y, scaledWidth, scaledHeight)`）。フレーム外や画像外は塗りが残る。拡大率が 1 のときはスムージングしない。
+4. `createImageCanvas` でフレームサイズの新規キャンバスを作り、透明以外なら全面を塗りつぶす。
+5. `drawImageAtCrop` で背景を拡大後サイズで描画し、フレーム矩形の左上をキャンバス原点に合わせる（`drawImage(..., -crop.x, -crop.y, scaledWidth, scaledHeight)`）。フレーム外や画像外は塗りが残る。拡大率が 1 のときはスムージングしない。
 6. その上にフレームを 1:1（伸縮なし）で描画する。
 7. PNG で Blob 化する。
 8. 両方の `ImageBitmap` を閉じる。
@@ -271,19 +273,25 @@ photo-editor/
 | `getScaledSourceSize(sw, sh, scale)` | 拡大後の画像幅・高さ |
 | `getCoverScale(sw, sh, dw, dh)` | 出力矩形を覆う最小の拡大率。`clampImageScale` 済み。入力が 0 以下なら `1` |
 | `rescaleCropRect(crop, from, to, sw, sh)` | 拡大率変更後も枠中心が同じ元画像点を指すよう位置を付け替える |
-| `getSourceIntersection(crop, sw, sh)` | 枠とソースの交差をソース座標と枠ローカル座標で返す。交差なしなら `null` |
 | `filenameWithoutExtension` | 末尾の拡張子（最後の `.` 以降）だけを除く。例: `photo.final.png` → `photo.final` |
-| `canvasToBlob(canvas, type='image/png', quality=0.92)` | `toBlob` の Promise 化。失敗時は例外。既定は PNG |
+| `canvasToBlob(canvas)` | PNG 形式の `toBlob` を Promise 化。失敗時は例外 |
 | `downloadBlob` | Object URL を作り、ダウンロード後に即 revoke |
 | `revokeObjectUrl` | `null` / `undefined` は無視 |
 
-`useObjectUrl(file)` は `File` から Object URL を作り、依存が変わったら revoke する。
+共通 Canvas 処理は `src/features/image/canvas.ts` の `createImageCanvas`（キャンバス作成と塗り）・`drawImageAtCrop`（拡大・切り抜き領域描画）に集約しています。
+
+`useObjectUrl(file)` は `File` から Object URL を作り、依存が変わったら revoke します。
+`useBlobPreview()` は加工後の Blob URL を更新・解放します。
+`useImageMetadata(file)` は選択ファイルの寸法を取得し、ファイル切り替え後に完了した古いデコード結果を破棄します。
 
 ## 10. 共通 UI コンポーネント
 
 | コンポーネント | 役割 |
 | --- | --- |
 | `AppShell` | ヘッダーとメイン幅の枠 |
+| `ToolPageHeader` | ツールの見出し・説明・ホームへのリンク |
+| `FillColorPicker` | Crop / Compose 共通の塗り色パレット |
+| `ImageScaleControls` | 拡大率の±ボタン・スライダー・100%復帰 |
 | `ImageFilePicker` | クリック選択と D&D。任意の hint / accept / サムネイル。`onClear` 指定時は選択済みなら右上に赤い削除ボタン。任意の `actions` を削除ボタンの左に置ける |
 | `Notice` | エラー（`role="alert"`）または成功（`role="status"`）の帯 |
 
@@ -309,8 +317,8 @@ pnpm test     # vitest run
 ### 11.3 テスト
 
 - 対象: `src/**/*.test.ts`
-- 現行は `imageUtils.test.ts` のみ（中央配置、はみ出し clamp、交差写像、拡大率、cover 拡大率、ファイル名）
-- Canvas を使う `cropImageToSize` / `composeBackgroundAndFrame` のテストは未実装
+- `imageUtils.test.ts`（中央配置、はみ出し clamp、拡大率、cover 拡大率、ファイル名）と `canvas.test.ts`（塗りつぶし、透明背景、2D Context 不可、描画座標、補間設定）でテスト
+- 実際のブラウザ Canvas を使う画像書き出しの E2E テストは未実装
 
 ### 11.4 GitHub Pages
 
@@ -318,9 +326,9 @@ pnpm test     # vitest run
 
 ### 11.5 ブラウザ前提
 
-- `createImageBitmap`、Canvas 2D、`canvas.toBlob`（WebP / PNG）が使える環境
+- `createImageBitmap`、Canvas 2D、`canvas.toBlob`（PNG）が使える環境
 - 最小幅 320px のレスポンシブ UI
-- HTML `lang="ja"`、viewport は設定済みだがレイアウトはモバイル非対応
+- HTML `lang="ja"` と viewport 設定済み、幅 320px 以上のレスポンシブ対応
 
 ## 12. 現状の非機能・制約
 

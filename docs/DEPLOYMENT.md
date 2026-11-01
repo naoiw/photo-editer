@@ -7,7 +7,7 @@
 | `main` | https://naoiw.github.io/photo-editor/ |
 | `develop` | https://naoiw.github.io/photo-editor/develop/ |
 
-公開先はどちらも同じ `github-pages` 環境です。1つの配布物の `/` と `/develop/` に成果物をまとめます。
+公開先はどちらも同じ `github-pages` 環境です。1つの配布物の `/` と `/develop/` に成果物をまとめます。各環境で画像処理に必要なサーバー側実行はありません。
 
 ## ワークフロー
 

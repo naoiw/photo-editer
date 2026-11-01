@@ -7,6 +7,7 @@ React / TypeScript で作ったブラウザ画像加工ツールです。トリ�
 - 出力サイズ（px）を指定したトリミングと、画像位置・拡大率の調整
 - 背景画像と透過フレーム画像の合成
 - ドラッグ＆ドロップによる画像選択と PNG 書き出し
+- 画像はサーバーに送信せず、プレビューの Blob URL は差し替え・画面終了時に解放
 - スマートフォン・PC に対応した画面構成
 
 ## 公開先
@@ -38,7 +39,7 @@ pnpm lint
 pnpm build
 ```
 
-`pnpm dev` は Vite の開発サーバーを起動します。ビルド結果 `dist/` は Git 管理対象外です。
+`pnpm dev` は Vite の開発サーバーを起動します。ビルド結果 `dist/` は Git 管理対象外です。テストには切り抜き座標計算と Canvas 描画ヘルパーの検証を含みます。
 
 ## ブランチ運用
 
@@ -50,8 +51,10 @@ pnpm build
 ## ディレクトリ構成
 
 - `src/pages/` — トリミング・合成・トップ画面
-- `src/components/` — 共通 UI
-- `src/features/` — Canvas 画像処理とテスト
+- `src/components/` — 画面共通のヘッダー、ファイル選択、背景色、拡大率 UI
+- `src/hooks/` — 画像寸法の読み込み、Object URL のライフサイクル管理
+- `src/features/image/` — Canvas 初期化・描画と切り抜き計算の共通処理、単体テスト
+- `src/features/crop/`・`src/features/compose/` — 各加工処理
 - `.github/workflows/` — 検証・Pages 公開
 - `docs/` — 仕様・開発・デプロイの説明
 
