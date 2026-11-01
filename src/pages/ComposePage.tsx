@@ -25,74 +25,28 @@ import {
   type FillColorId,
 } from '../features/image/imageUtils'
 import { useObjectUrl } from '../hooks/useObjectUrl'
-
-type ImageMeta = {
-  width: number
-  height: number
-}
+import { useImageMetadata } from '../hooks/useImageMetadata'
+import { useBlobPreview } from '../hooks/useBlobPreview'
 
 export function ComposePage() {
   const [backgroundFile, setBackgroundFile] = useState<File | null>(null)
   const [frameFile, setFrameFile] = useState<File | null>(null)
-  const [backgroundMeta, setBackgroundMeta] = useState<ImageMeta | null>(null)
-  const [frameMeta, setFrameMeta] = useState<ImageMeta | null>(null)
   const [cropRect, setCropRect] = useState<CropRect | null>(null)
   const [imageScale, setImageScale] = useState(1)
   const [fillColor, setFillColor] = useState<FillColorId>('black')
   const [frameHidden, setFrameHidden] = useState(false)
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null)
+  const { previewUrl, clearPreview, showPreview } = useBlobPreview()
   const [error, setError] = useState('')
   const [processing, setProcessing] = useState(false)
 
   const backgroundUrl = useObjectUrl(backgroundFile)
   const frameUrl = useObjectUrl(frameFile)
+  const { meta: backgroundMeta, loadFailed: backgroundLoadFailed } = useImageMetadata(backgroundFile)
+  const { meta: frameMeta, loadFailed: frameLoadFailed } = useImageMetadata(frameFile)
   const dragState = useRef<{ startX: number; startY: number; origin: CropRect } | null>(null)
   const stageRef = useRef<HTMLDivElement>(null)
   const imageScaleRef = useRef(imageScale)
   imageScaleRef.current = imageScale
-
-  useEffect(() => {
-    if (!backgroundFile) {
-      setBackgroundMeta(null)
-      return
-    }
-    let cancelled = false
-    void createImageBitmap(backgroundFile).then((bitmap) => {
-      if (cancelled) {
-        bitmap.close()
-        return
-      }
-      setBackgroundMeta({ width: bitmap.width, height: bitmap.height })
-      bitmap.close()
-    }).catch(() => {
-      if (!cancelled) setError('背景画像を読み込めませんでした。')
-    })
-    return () => {
-      cancelled = true
-    }
-  }, [backgroundFile])
-
-  useEffect(() => {
-    if (!frameFile) {
-      setFrameMeta(null)
-      setFrameHidden(false)
-      return
-    }
-    let cancelled = false
-    void createImageBitmap(frameFile).then((bitmap) => {
-      if (cancelled) {
-        bitmap.close()
-        return
-      }
-      setFrameMeta({ width: bitmap.width, height: bitmap.height })
-      bitmap.close()
-    }).catch(() => {
-      if (!cancelled) setError('フレーム画像を読み込めませんでした。')
-    })
-    return () => {
-      cancelled = true
-    }
-  }, [frameFile])
 
   useEffect(() => {
     if (!backgroundMeta || !frameMeta) {
@@ -107,12 +61,6 @@ export function ComposePage() {
     const scaled = getScaledSourceSize(backgroundMeta.width, backgroundMeta.height, cover)
     setCropRect(getPixelCropRect(scaled.width, scaled.height, frameMeta.width, frameMeta.height))
   }, [backgroundMeta, frameMeta])
-
-  useEffect(() => {
-    return () => {
-      if (previewUrl) URL.revokeObjectURL(previewUrl)
-    }
-  }, [previewUrl])
 
   const applyImageScale = useCallback((nextScale: number) => {
     const current = imageScaleRef.current
@@ -141,11 +89,6 @@ export function ComposePage() {
     return () => stage.removeEventListener('wheel', onWheel)
   }, [applyImageScale, canAdjust])
 
-  function clearPreview() {
-    if (previewUrl) URL.revokeObjectURL(previewUrl)
-    setPreviewUrl(null)
-  }
-
   async function runCompose(download: boolean) {
     if (!backgroundFile || !frameFile || !cropRect) return
     setProcessing(true)
@@ -156,9 +99,7 @@ export function ComposePage() {
         cropRect,
         fillColor,
       })
-      clearPreview()
-      const url = URL.createObjectURL(result.blob)
-      setPreviewUrl(url)
+      showPreview(result.blob)
       if (download) {
         const base = filenameWithoutExtension(backgroundFile.name)
         downloadBlob(result.blob, `${base}-composed.${IMAGE_EXPORT_EXTENSION}`)
@@ -204,7 +145,9 @@ export function ComposePage() {
     <AppShell>
       <ToolPageHeader title="背景とフレームの合成" description="出力サイズはフレーム画像に合わせます。プレビュー上で背景の位置と大きさを調整できます。" />
 
-      {error ? <Notice>{error}</Notice> : null}
+      {error || backgroundLoadFailed || frameLoadFailed ? (
+        <Notice>{error || (backgroundLoadFailed ? '背景画像を読み込めませんでした。' : 'フレーム画像を読み込めませんでした。')}</Notice>
+      ) : null}
 
       <section className="grid min-w-0 grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)] lg:gap-6">
         <div className="grid content-start gap-5 min-w-0 rounded-2xl border border-line bg-panel p-4 sm:p-6">
@@ -247,6 +190,7 @@ export function ComposePage() {
             onClear={() => {
               setError('')
               setFrameFile(null)
+              setFrameHidden(false)
               clearPreview()
             }}
             onSelect={(file) => {

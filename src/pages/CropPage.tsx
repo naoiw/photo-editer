@@ -24,50 +24,30 @@ import {
   type FillColorId,
 } from '../features/image/imageUtils'
 import { useObjectUrl } from '../hooks/useObjectUrl'
-
-type ImageMeta = {
-  width: number
-  height: number
-}
+import { useImageMetadata } from '../hooks/useImageMetadata'
+import { useBlobPreview } from '../hooks/useBlobPreview'
 
 export function CropPage() {
   const [file, setFile] = useState<File | null>(null)
-  const [meta, setMeta] = useState<ImageMeta | null>(null)
   const [width, setWidth] = useState(828)
   const [height, setHeight] = useState(1154)
   const [cropRect, setCropRect] = useState<CropRect | null>(null)
   const [fillColor, setFillColor] = useState<FillColorId>('black')
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null)
+  const { previewUrl, clearPreview, showPreview } = useBlobPreview()
   const [error, setError] = useState('')
   const [processing, setProcessing] = useState(false)
   const [imageScale, setImageScale] = useState(1)
   const sourceUrl = useObjectUrl(file)
+  const { meta, loadFailed } = useImageMetadata(file)
   const dragState = useRef<{ startX: number; startY: number; origin: CropRect } | null>(null)
   const stageRef = useRef<HTMLDivElement>(null)
   const imageScaleRef = useRef(imageScale)
   imageScaleRef.current = imageScale
 
   useEffect(() => {
+    imageScaleRef.current = 1
     setImageScale(1)
-    setMeta(null)
     setCropRect(null)
-    if (!file) return
-
-    let cancelled = false
-    void createImageBitmap(file).then((bitmap) => {
-      if (cancelled) {
-        bitmap.close()
-        return
-      }
-      setMeta({ width: bitmap.width, height: bitmap.height })
-      bitmap.close()
-    }).catch(() => {
-      if (!cancelled) setError('画像を読み込めませんでした。')
-    })
-
-    return () => {
-      cancelled = true
-    }
   }, [file])
 
   useEffect(() => {
@@ -75,12 +55,6 @@ export function CropPage() {
     const scaled = getScaledSourceSize(meta.width, meta.height, imageScaleRef.current)
     setCropRect(getPixelCropRect(scaled.width, scaled.height, width, height))
   }, [width, height, meta])
-
-  useEffect(() => {
-    return () => {
-      if (previewUrl) URL.revokeObjectURL(previewUrl)
-    }
-  }, [previewUrl])
 
   const applyImageScale = useCallback((nextScale: number) => {
     const current = imageScaleRef.current
@@ -112,8 +86,7 @@ export function CropPage() {
   async function handleSelect(nextFile: File) {
     setError('')
     setFile(nextFile)
-    if (previewUrl) URL.revokeObjectURL(previewUrl)
-    setPreviewUrl(null)
+    clearPreview()
   }
 
   async function handleProcess() {
@@ -122,8 +95,7 @@ export function CropPage() {
     setError('')
     try {
       const result = await cropImageToSize(file, { width, height }, cropRect, fillColor, imageScale)
-      if (previewUrl) URL.revokeObjectURL(previewUrl)
-      setPreviewUrl(URL.createObjectURL(result.blob))
+      showPreview(result.blob)
     } catch (cause) {
       console.error(cause)
       setError('トリミングに失敗しました。')
@@ -139,8 +111,7 @@ export function CropPage() {
     try {
       const result = await cropImageToSize(file, { width, height }, cropRect, fillColor, imageScale)
       downloadBlob(result.blob, `${filenameWithoutExtension(file.name)}-cropped.${result.extension}`)
-      if (previewUrl) URL.revokeObjectURL(previewUrl)
-      setPreviewUrl(URL.createObjectURL(result.blob))
+      showPreview(result.blob)
     } catch (cause) {
       console.error(cause)
       setError('ダウンロード用の画像を作成できませんでした。')
@@ -194,7 +165,7 @@ export function CropPage() {
     <AppShell>
       <ToolPageHeader title="トリミング" description="出力サイズをピクセルで指定し、切り抜き位置を調整できます。枠は画像からはみ出しても構いません。" />
 
-      {error ? <Notice>{error}</Notice> : null}
+      {error || loadFailed ? <Notice>{error || '画像を読み込めませんでした。'}</Notice> : null}
 
       <section className="grid w-full min-w-0 grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)] lg:gap-6">
         <div className="grid content-start gap-5 min-w-0 rounded-2xl border border-line bg-panel p-4 sm:p-6">
@@ -204,8 +175,7 @@ export function CropPage() {
             onClear={() => {
               setError('')
               setFile(null)
-              if (previewUrl) URL.revokeObjectURL(previewUrl)
-              setPreviewUrl(null)
+              clearPreview()
             }}
             onSelect={handleSelect}
             previewUrl={sourceUrl}
