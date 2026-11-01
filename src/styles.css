@@ -21,6 +21,8 @@
   --chrome-brand-size: 16px;
   --chrome-caption-size: 11px;
   --chrome-footer-size: 12px;
+  /* Keep the centered chrome aligned with other sites even on short pages. */
+  scrollbar-gutter: stable;
   color-scheme: dark;
   font-family: var(--font-sans);
   color: var(--color-ink);
