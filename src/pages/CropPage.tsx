@@ -1,14 +1,14 @@
-import { IconDownload as Download, IconMinus as Minus, IconPlus as Plus } from '@tabler/icons-react'
+import { IconDownload as Download } from '@tabler/icons-react'
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Link } from 'react-router-dom'
 import { AppShell } from '../components/AppShell'
 import { Notice } from '../components/Feedback'
 import { ImageFilePicker } from '../components/ImageFilePicker'
+import { FillColorPicker } from '../components/FillColorPicker'
+import { ImageScaleControls } from '../components/ImageScaleControls'
+import { ToolPageHeader } from '../components/ToolPageHeader'
 import { cropImageToSize } from '../features/crop/cropImage'
 import {
   CROP_MAX_OVERHANG_RATIO,
-  IMAGE_SCALE_MAX,
-  IMAGE_SCALE_MIN,
   IMAGE_SCALE_STEP,
   clampImageScale,
   downloadBlob,
@@ -22,52 +22,30 @@ import {
   type FillColorId,
 } from '../features/image/imageUtils'
 import { useObjectUrl } from '../hooks/useObjectUrl'
-
-type ImageMeta = {
-  width: number
-  height: number
-}
-
-const FILL_OPTIONS = Object.entries(FILL_COLORS) as [FillColorId, (typeof FILL_COLORS)[FillColorId]][]
+import { useImageMetadata } from '../hooks/useImageMetadata'
+import { useBlobPreview } from '../hooks/useBlobPreview'
 
 export function CropPage() {
   const [file, setFile] = useState<File | null>(null)
-  const [meta, setMeta] = useState<ImageMeta | null>(null)
   const [width, setWidth] = useState(828)
   const [height, setHeight] = useState(1154)
   const [cropRect, setCropRect] = useState<CropRect | null>(null)
   const [fillColor, setFillColor] = useState<FillColorId>('black')
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null)
+  const { previewUrl, clearPreview, showPreview } = useBlobPreview()
   const [error, setError] = useState('')
   const [processing, setProcessing] = useState(false)
   const [imageScale, setImageScale] = useState(1)
   const sourceUrl = useObjectUrl(file)
+  const { meta, loadFailed } = useImageMetadata(file)
   const dragState = useRef<{ startX: number; startY: number; origin: CropRect } | null>(null)
   const stageRef = useRef<HTMLDivElement>(null)
   const imageScaleRef = useRef(imageScale)
   imageScaleRef.current = imageScale
 
   useEffect(() => {
+    imageScaleRef.current = 1
     setImageScale(1)
-    setMeta(null)
     setCropRect(null)
-    if (!file) return
-
-    let cancelled = false
-    void createImageBitmap(file).then((bitmap) => {
-      if (cancelled) {
-        bitmap.close()
-        return
-      }
-      setMeta({ width: bitmap.width, height: bitmap.height })
-      bitmap.close()
-    }).catch(() => {
-      if (!cancelled) setError('画像を読み込めませんでした。')
-    })
-
-    return () => {
-      cancelled = true
-    }
   }, [file])
 
   useEffect(() => {
@@ -75,12 +53,6 @@ export function CropPage() {
     const scaled = getScaledSourceSize(meta.width, meta.height, imageScaleRef.current)
     setCropRect(getPixelCropRect(scaled.width, scaled.height, width, height))
   }, [width, height, meta])
-
-  useEffect(() => {
-    return () => {
-      if (previewUrl) URL.revokeObjectURL(previewUrl)
-    }
-  }, [previewUrl])
 
   const applyImageScale = useCallback((nextScale: number) => {
     const current = imageScaleRef.current
@@ -112,8 +84,7 @@ export function CropPage() {
   async function handleSelect(nextFile: File) {
     setError('')
     setFile(nextFile)
-    if (previewUrl) URL.revokeObjectURL(previewUrl)
-    setPreviewUrl(null)
+    clearPreview()
   }
 
   async function handleProcess() {
@@ -122,8 +93,7 @@ export function CropPage() {
     setError('')
     try {
       const result = await cropImageToSize(file, { width, height }, cropRect, fillColor, imageScale)
-      if (previewUrl) URL.revokeObjectURL(previewUrl)
-      setPreviewUrl(URL.createObjectURL(result.blob))
+      showPreview(result.blob)
     } catch (cause) {
       console.error(cause)
       setError('トリミングに失敗しました。')
@@ -139,8 +109,7 @@ export function CropPage() {
     try {
       const result = await cropImageToSize(file, { width, height }, cropRect, fillColor, imageScale)
       downloadBlob(result.blob, `${filenameWithoutExtension(file.name)}-cropped.${result.extension}`)
-      if (previewUrl) URL.revokeObjectURL(previewUrl)
-      setPreviewUrl(URL.createObjectURL(result.blob))
+      showPreview(result.blob)
     } catch (cause) {
       console.error(cause)
       setError('ダウンロード用の画像を作成できませんでした。')
@@ -192,17 +161,9 @@ export function CropPage() {
 
   return (
     <AppShell>
-      <div className="flex min-w-0 flex-col items-start justify-between gap-4 sm:flex-row sm:items-end">
-        <div className="grid gap-2">
-          <h1 className="page-title">トリミング</h1>
-          <p className="text-sm text-muted">
-            出力サイズをピクセルで指定し、切り抜き位置を調整できます。枠は画像からはみ出しても構いません。
-          </p>
-        </div>
-        <Link className="button-secondary no-underline" to="/">ホームへ戻る</Link>
-      </div>
+      <ToolPageHeader title="トリミング" description="出力サイズをピクセルで指定し、切り抜き位置を調整できます。枠は画像からはみ出しても構いません。" />
 
-      {error ? <Notice>{error}</Notice> : null}
+      {error || loadFailed ? <Notice>{error || '画像を読み込めませんでした。'}</Notice> : null}
 
       <section className="grid w-full min-w-0 grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)] lg:gap-6">
         <div className="grid content-start gap-5 min-w-0 rounded-2xl border border-line bg-panel p-4 sm:p-6">
@@ -212,8 +173,7 @@ export function CropPage() {
             onClear={() => {
               setError('')
               setFile(null)
-              if (previewUrl) URL.revokeObjectURL(previewUrl)
-              setPreviewUrl(null)
+              clearPreview()
             }}
             onSelect={handleSelect}
             previewUrl={sourceUrl}
@@ -242,28 +202,7 @@ export function CropPage() {
             </label>
           </div>
 
-          <div className="grid gap-2">
-            <span className="field-label">はみ出し部分の背景色</span>
-            <div className="flex flex-wrap gap-2">
-              {FILL_OPTIONS.map(([id, option]) => (
-                <button
-                  aria-label={option.label}
-                  aria-pressed={fillColor === id}
-                  className={`grid size-9 place-items-center rounded-md border transition-colors ${fillColor === id ? 'border-accent ring-2 ring-accent/20' : 'border-line'}`}
-                  key={id}
-                  onClick={() => setFillColor(id)}
-                  style={{
-                    background: id === 'transparent'
-                      ? 'repeating-conic-gradient(#d8dde3 0% 25%, #ffffff 0% 50%) 50% / 10px 10px'
-                      : option.css,
-                  }}
-                  title={option.label}
-                  type="button"
-                />
-              ))}
-            </div>
-            <p className="text-xs text-muted">選択中: {fillPreview.label}</p>
-          </div>
+          <FillColorPicker value={fillColor} onChange={setFillColor} />
 
           {meta ? (
             <p className="text-xs text-muted">
@@ -277,44 +216,7 @@ export function CropPage() {
             <div className="flex flex-wrap items-center justify-between gap-3">
               <h2 className="text-sm font-semibold">切り抜き位置</h2>
               {sourceUrl && meta && cropRect ? (
-                <div className="flex items-center gap-1">
-                  <button
-                    aria-label="画像を縮小"
-                    className="icon-button"
-                    disabled={imageScale <= IMAGE_SCALE_MIN}
-                    onClick={() => applyImageScale(imageScale - IMAGE_SCALE_STEP)}
-                    type="button"
-                  >
-                    <Minus size={16} />
-                  </button>
-                  <input
-                    aria-label="画像の拡大率"
-                    className="w-24 accent-accent"
-                    max={IMAGE_SCALE_MAX}
-                    min={IMAGE_SCALE_MIN}
-                    onChange={(event) => applyImageScale(Number(event.target.value))}
-                    step={IMAGE_SCALE_STEP}
-                    type="range"
-                    value={imageScale}
-                  />
-                  <button
-                    className="min-w-14 rounded-md px-1 py-1.5 text-xs font-medium text-ink hover:bg-soft"
-                    onClick={() => applyImageScale(1)}
-                    title="100%に戻す"
-                    type="button"
-                  >
-                    {Math.round(imageScale * 100)}%
-                  </button>
-                  <button
-                    aria-label="画像を拡大"
-                    className="icon-button"
-                    disabled={imageScale >= IMAGE_SCALE_MAX}
-                    onClick={() => applyImageScale(imageScale + IMAGE_SCALE_STEP)}
-                    type="button"
-                  >
-                    <Plus size={16} />
-                  </button>
-                </div>
+                <ImageScaleControls label="画像" value={imageScale} onChange={applyImageScale} />
               ) : null}
             </div>
             {sourceUrl && meta && cropRect ? (

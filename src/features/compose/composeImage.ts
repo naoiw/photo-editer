@@ -1,7 +1,7 @@
+import { createImageCanvas, drawImageAtCrop } from '../image/canvas'
 import {
   canvasToBlob,
   clampImageScale,
-  FILL_COLORS,
   getPixelCropRect,
   getScaledSourceSize,
   softClampCropRect,
@@ -23,10 +23,17 @@ export async function composeBackgroundAndFrame(
   frameFile: File,
   options: ComposeOptions = {},
 ) {
-  const [background, frame] = await Promise.all([
+  const [backgroundResult, frameResult] = await Promise.allSettled([
     createImageBitmap(backgroundFile),
     createImageBitmap(frameFile),
   ])
+  if (backgroundResult.status === 'rejected' || frameResult.status === 'rejected') {
+    if (backgroundResult.status === 'fulfilled') backgroundResult.value.close()
+    if (frameResult.status === 'fulfilled') frameResult.value.close()
+    throw new Error('画像の読み込みに失敗しました。')
+  }
+  const background = backgroundResult.value
+  const frame = frameResult.value
 
   try {
     const width = Math.max(1, frame.width)
@@ -44,31 +51,8 @@ export async function composeBackgroundAndFrame(
       scaled.height,
     )
 
-    const canvas = document.createElement('canvas')
-    canvas.width = width
-    canvas.height = height
-    const context = canvas.getContext('2d')
-    if (!context) throw new Error('画像合成を開始できませんでした。')
-
-    context.clearRect(0, 0, width, height)
-    const fill = FILL_COLORS[fillColor].canvas
-    if (fill) {
-      context.fillStyle = fill
-      context.fillRect(0, 0, width, height)
-    }
-    context.imageSmoothingEnabled = scale !== 1
-    context.imageSmoothingQuality = 'high'
-    context.drawImage(
-      background,
-      0,
-      0,
-      background.width,
-      background.height,
-      -crop.x,
-      -crop.y,
-      scaled.width,
-      scaled.height,
-    )
+    const { canvas, context } = createImageCanvas(width, height, fillColor)
+    drawImageAtCrop(context, background, crop, scale)
     context.drawImage(frame, 0, 0)
 
     return {

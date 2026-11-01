@@ -1,6 +1,5 @@
 export const IMAGE_EXPORT_TYPE = 'image/png'
 export const IMAGE_EXPORT_EXTENSION = 'png'
-export const IMAGE_WEBP_QUALITY = 0.92
 export const CROP_MAX_OVERHANG_RATIO = 0.25
 export const IMAGE_SCALE_MIN = 0.25
 export const IMAGE_SCALE_MAX = 8
@@ -111,34 +110,15 @@ export function rescaleCropRect(
   }, scaled.width, scaled.height)
 }
 
-export function getSourceIntersection(crop: CropRect, sourceWidth: number, sourceHeight: number) {
-  const left = Math.max(0, crop.x)
-  const top = Math.max(0, crop.y)
-  const right = Math.min(sourceWidth, crop.x + crop.width)
-  const bottom = Math.min(sourceHeight, crop.y + crop.height)
-  const width = right - left
-  const height = bottom - top
-  if (width <= 0 || height <= 0) return null
-  return {
-    sx: left,
-    sy: top,
-    sw: width,
-    sh: height,
-    dx: left - crop.x,
-    dy: top - crop.y,
-  }
-}
-
 export function filenameWithoutExtension(filename: string) {
   return filename.replace(/\.[^/.]+$/, '')
 }
 
-export function canvasToBlob(canvas: HTMLCanvasElement, type = IMAGE_EXPORT_TYPE, quality = IMAGE_WEBP_QUALITY) {
+export function canvasToBlob(canvas: HTMLCanvasElement) {
   return new Promise<Blob>((resolve, reject) => {
     canvas.toBlob(
       (blob) => (blob ? resolve(blob) : reject(new Error('画像の書き出しに失敗しました。'))),
-      type,
-      quality,
+      IMAGE_EXPORT_TYPE,
     )
   })
 }

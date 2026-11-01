@@ -5,7 +5,6 @@ import {
   getCoverScale,
   getPixelCropRect,
   getScaledSourceSize,
-  getSourceIntersection,
   rescaleCropRect,
   softClampCropRect,
 } from './imageUtils'
@@ -49,21 +48,6 @@ describe('image utilities', () => {
     const inside = softClampCropRect({ x: -300, y: -120, width: 800, height: 800 }, 200, 200, 0.25)
     expect(inside.x).toBeCloseTo(-300)
     expect(inside.y).toBeCloseTo(-120)
-  })
-
-  it('maps the visible source intersection into crop-local coordinates', () => {
-    expect(getSourceIntersection({ x: -50, y: -20, width: 200, height: 100 }, 800, 600)).toEqual({
-      sx: 0,
-      sy: 0,
-      sw: 150,
-      sh: 80,
-      dx: 50,
-      dy: 20,
-    })
-  })
-
-  it('returns null when the crop does not intersect the source', () => {
-    expect(getSourceIntersection({ x: 900, y: 0, width: 100, height: 100 }, 800, 600)).toBeNull()
   })
 
   it('removes the final extension from a filename', () => {

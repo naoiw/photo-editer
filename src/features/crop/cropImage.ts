@@ -1,7 +1,7 @@
+import { createImageCanvas, drawImageAtCrop } from '../image/canvas'
 import {
   canvasToBlob,
   clampImageScale,
-  FILL_COLORS,
   IMAGE_EXPORT_EXTENSION,
   getPixelCropRect,
   getScaledSourceSize,
@@ -34,32 +34,8 @@ export async function cropImageToSize(
       scaled.height,
     )
 
-    const canvas = document.createElement('canvas')
-    canvas.width = outputWidth
-    canvas.height = outputHeight
-    const context = canvas.getContext('2d')
-    if (!context) throw new Error('画像処理を開始できませんでした。')
-
-    context.clearRect(0, 0, outputWidth, outputHeight)
-    const fill = FILL_COLORS[fillColor].canvas
-    if (fill) {
-      context.fillStyle = fill
-      context.fillRect(0, 0, outputWidth, outputHeight)
-    }
-
-    context.imageSmoothingEnabled = scale !== 1
-    context.imageSmoothingQuality = 'high'
-    context.drawImage(
-      bitmap,
-      0,
-      0,
-      bitmap.width,
-      bitmap.height,
-      -sourceCrop.x,
-      -sourceCrop.y,
-      scaled.width,
-      scaled.height,
-    )
+    const { canvas, context } = createImageCanvas(outputWidth, outputHeight, fillColor)
+    drawImageAtCrop(context, bitmap, sourceCrop, scale)
 
     return {
       blob: await canvasToBlob(canvas),
