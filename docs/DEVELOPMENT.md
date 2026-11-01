@@ -26,7 +26,7 @@ pnpm build   # tsc -b + Vite
 
 ```bash
 pnpm exec tsc -b
-pnpm exec vite build --base=/photo-editer/develop/
+pnpm exec vite build --base=/photo-editor/develop/
 ```
 
 ## ファイル配置

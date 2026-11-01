@@ -1,4 +1,4 @@
-# Photo Editer 仕様書
+# Photo Editor 仕様書
 
 ブラウザ上でローカル画像を加工する Web アプリケーションの現行仕様です。画像はサーバーへ送信せず、すべてクライアント内で処理します。
 
@@ -6,7 +6,7 @@
 
 | 項目 | 内容 |
 | --- | --- |
-| プロダクト名 | Photo Editer |
+| プロダクト名 | Photo Editor |
 | バージョン | 0.1.0 |
 | 種別 | シングルページアプリケーション（SPA） |
 | ライセンス | MIT |
@@ -37,7 +37,7 @@
 ## 3. ディレクトリ構成
 
 ```
-photo-editer/
+photo-editor/
 ├── docs/                      # SPEC / DEVELOPMENT / DEPLOYMENT
 ├── src/
 │   ├── App.tsx                # ルート定義
@@ -314,7 +314,7 @@ pnpm test     # vitest run
 
 ### 11.4 GitHub Pages
 
-`main` を `/photo-editer/`、`develop` を `/photo-editer/develop/` で配布します。公開と CI の詳細は [DEPLOYMENT.md](DEPLOYMENT.md) を参照してください。
+`main` を `/photo-editor/`、`develop` を `/photo-editor/develop/` で配布します。公開と CI の詳細は [DEPLOYMENT.md](DEPLOYMENT.md) を参照してください。
 
 ### 11.5 ブラウザ前提
 

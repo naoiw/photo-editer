@@ -1,4 +1,4 @@
-# Photo Editer
+# Photo Editor
 
 React / TypeScript で作ったブラウザ画像加工ツールです。トリミングと背景・フレーム合成を行います。画像ファイルはブラウザ内で処理し、サーバーへ送信しません。
 
@@ -13,8 +13,8 @@ React / TypeScript で作ったブラウザ画像加工ツールです。トリ�
 
 | 環境 | ブランチ | URL |
 | --- | --- | --- |
-| 本番 | `main` | https://naoiw.github.io/photo-editer/ |
-| 開発プレビュー | `develop` | https://naoiw.github.io/photo-editer/develop/ |
+| 本番 | `main` | https://naoiw.github.io/photo-editor/ |
+| 開発プレビュー | `develop` | https://naoiw.github.io/photo-editor/develop/ |
 
 本番とプレビューは、1つの GitHub Pages サイト内の別パスで公開します。画面遷移は静的ホスティング向けに `#/crop`, `#/compose` のハッシュルートを使用します。
 

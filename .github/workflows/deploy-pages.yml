@@ -59,7 +59,7 @@ jobs:
           pnpm install --frozen-lockfile
           pnpm test
           pnpm exec tsc -b
-          pnpm exec vite build --base=/photo-editer/
+          pnpm exec vite build --base=/photo-editor/
 
       - name: Test, lint and build preview
         working-directory: preview
@@ -68,7 +68,7 @@ jobs:
           pnpm test
           pnpm lint
           pnpm exec tsc -b
-          pnpm exec vite build --base=/photo-editer/develop/
+          pnpm exec vite build --base=/photo-editor/develop/
 
       - name: Combine sites
         run: |
