@@ -1,9 +1,11 @@
-import { IconDownload as Download, IconEye as Eye, IconEyeOff as EyeOff, IconMinus as Minus, IconPlus as Plus } from '@tabler/icons-react'
+import { IconDownload as Download, IconEye as Eye, IconEyeOff as EyeOff } from '@tabler/icons-react'
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Link } from 'react-router-dom'
 import { AppShell } from '../components/AppShell'
 import { Notice } from '../components/Feedback'
 import { ImageFilePicker } from '../components/ImageFilePicker'
+import { FillColorPicker } from '../components/FillColorPicker'
+import { ImageScaleControls } from '../components/ImageScaleControls'
+import { ToolPageHeader } from '../components/ToolPageHeader'
 import { composeBackgroundAndFrame } from '../features/compose/composeImage'
 import {
   FILL_COLORS,
@@ -28,8 +30,6 @@ type ImageMeta = {
   width: number
   height: number
 }
-
-const FILL_OPTIONS = Object.entries(FILL_COLORS) as [FillColorId, (typeof FILL_COLORS)[FillColorId]][]
 
 export function ComposePage() {
   const [backgroundFile, setBackgroundFile] = useState<File | null>(null)
@@ -202,15 +202,7 @@ export function ComposePage() {
 
   return (
     <AppShell>
-      <div className="flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-end">
-        <div className="grid gap-2">
-          <h1 className="page-title">背景とフレームの合成</h1>
-          <p className="text-sm text-muted">
-            出力サイズはフレーム画像に合わせます。プレビュー上で背景の位置と大きさを調整できます。
-          </p>
-        </div>
-        <Link className="button-secondary no-underline" to="/">ホームへ戻る</Link>
-      </div>
+      <ToolPageHeader title="背景とフレームの合成" description="出力サイズはフレーム画像に合わせます。プレビュー上で背景の位置と大きさを調整できます。" />
 
       {error ? <Notice>{error}</Notice> : null}
 
@@ -266,28 +258,7 @@ export function ComposePage() {
             previewUrl={frameUrl}
           />
 
-          <div className="grid gap-2">
-            <span className="field-label">はみ出し部分の背景色</span>
-            <div className="flex flex-wrap gap-2">
-              {FILL_OPTIONS.map(([id, option]) => (
-                <button
-                  aria-label={option.label}
-                  aria-pressed={fillColor === id}
-                  className={`grid size-9 place-items-center rounded-md border transition-colors ${fillColor === id ? 'border-accent ring-2 ring-accent/20' : 'border-line'}`}
-                  key={id}
-                  onClick={() => setFillColor(id)}
-                  style={{
-                    background: id === 'transparent'
-                      ? 'repeating-conic-gradient(#d8dde3 0% 25%, #ffffff 0% 50%) 50% / 10px 10px'
-                      : option.css,
-                  }}
-                  title={option.label}
-                  type="button"
-                />
-              ))}
-            </div>
-            <p className="text-xs text-muted">選択中: {fillPreview.label}</p>
-          </div>
+          <FillColorPicker value={fillColor} onChange={setFillColor} />
 
           {backgroundMeta || frameMeta ? (
             <p className="text-xs text-muted">
@@ -302,44 +273,7 @@ export function ComposePage() {
           <div className="flex flex-wrap items-center justify-between gap-3">
             <h2 className="text-sm font-semibold">合成プレビュー</h2>
             {canAdjust ? (
-              <div className="flex items-center gap-1">
-                <button
-                  aria-label="背景を縮小"
-                  className="icon-button"
-                  disabled={imageScale <= IMAGE_SCALE_MIN}
-                  onClick={() => applyImageScale(imageScale - IMAGE_SCALE_STEP)}
-                  type="button"
-                >
-                  <Minus size={16} />
-                </button>
-                <input
-                  aria-label="背景の拡大率"
-                  className="w-24 accent-accent"
-                  max={IMAGE_SCALE_MAX}
-                  min={IMAGE_SCALE_MIN}
-                  onChange={(event) => applyImageScale(Number(event.target.value))}
-                  step={IMAGE_SCALE_STEP}
-                  type="range"
-                  value={imageScale}
-                />
-                <button
-                  className="min-w-14 rounded-md px-1 py-1.5 text-xs font-medium text-ink hover:bg-soft"
-                  onClick={() => applyImageScale(1)}
-                  title="100%に戻す"
-                  type="button"
-                >
-                  {Math.round(imageScale * 100)}%
-                </button>
-                <button
-                  aria-label="背景を拡大"
-                  className="icon-button"
-                  disabled={imageScale >= IMAGE_SCALE_MAX}
-                  onClick={() => applyImageScale(imageScale + IMAGE_SCALE_STEP)}
-                  type="button"
-                >
-                  <Plus size={16} />
-                </button>
-              </div>
+              <ImageScaleControls label="背景" value={imageScale} onChange={applyImageScale} />
             ) : null}
           </div>
 

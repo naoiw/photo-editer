@@ -1,9 +1,11 @@
-import { IconDownload as Download, IconMinus as Minus, IconPlus as Plus } from '@tabler/icons-react'
+import { IconDownload as Download } from '@tabler/icons-react'
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Link } from 'react-router-dom'
 import { AppShell } from '../components/AppShell'
 import { Notice } from '../components/Feedback'
 import { ImageFilePicker } from '../components/ImageFilePicker'
+import { FillColorPicker } from '../components/FillColorPicker'
+import { ImageScaleControls } from '../components/ImageScaleControls'
+import { ToolPageHeader } from '../components/ToolPageHeader'
 import { cropImageToSize } from '../features/crop/cropImage'
 import {
   CROP_MAX_OVERHANG_RATIO,
@@ -27,8 +29,6 @@ type ImageMeta = {
   width: number
   height: number
 }
-
-const FILL_OPTIONS = Object.entries(FILL_COLORS) as [FillColorId, (typeof FILL_COLORS)[FillColorId]][]
 
 export function CropPage() {
   const [file, setFile] = useState<File | null>(null)
@@ -192,15 +192,7 @@ export function CropPage() {
 
   return (
     <AppShell>
-      <div className="flex min-w-0 flex-col items-start justify-between gap-4 sm:flex-row sm:items-end">
-        <div className="grid gap-2">
-          <h1 className="page-title">トリミング</h1>
-          <p className="text-sm text-muted">
-            出力サイズをピクセルで指定し、切り抜き位置を調整できます。枠は画像からはみ出しても構いません。
-          </p>
-        </div>
-        <Link className="button-secondary no-underline" to="/">ホームへ戻る</Link>
-      </div>
+      <ToolPageHeader title="トリミング" description="出力サイズをピクセルで指定し、切り抜き位置を調整できます。枠は画像からはみ出しても構いません。" />
 
       {error ? <Notice>{error}</Notice> : null}
 
@@ -242,28 +234,7 @@ export function CropPage() {
             </label>
           </div>
 
-          <div className="grid gap-2">
-            <span className="field-label">はみ出し部分の背景色</span>
-            <div className="flex flex-wrap gap-2">
-              {FILL_OPTIONS.map(([id, option]) => (
-                <button
-                  aria-label={option.label}
-                  aria-pressed={fillColor === id}
-                  className={`grid size-9 place-items-center rounded-md border transition-colors ${fillColor === id ? 'border-accent ring-2 ring-accent/20' : 'border-line'}`}
-                  key={id}
-                  onClick={() => setFillColor(id)}
-                  style={{
-                    background: id === 'transparent'
-                      ? 'repeating-conic-gradient(#d8dde3 0% 25%, #ffffff 0% 50%) 50% / 10px 10px'
-                      : option.css,
-                  }}
-                  title={option.label}
-                  type="button"
-                />
-              ))}
-            </div>
-            <p className="text-xs text-muted">選択中: {fillPreview.label}</p>
-          </div>
+          <FillColorPicker value={fillColor} onChange={setFillColor} />
 
           {meta ? (
             <p className="text-xs text-muted">
@@ -277,44 +248,7 @@ export function CropPage() {
             <div className="flex flex-wrap items-center justify-between gap-3">
               <h2 className="text-sm font-semibold">切り抜き位置</h2>
               {sourceUrl && meta && cropRect ? (
-                <div className="flex items-center gap-1">
-                  <button
-                    aria-label="画像を縮小"
-                    className="icon-button"
-                    disabled={imageScale <= IMAGE_SCALE_MIN}
-                    onClick={() => applyImageScale(imageScale - IMAGE_SCALE_STEP)}
-                    type="button"
-                  >
-                    <Minus size={16} />
-                  </button>
-                  <input
-                    aria-label="画像の拡大率"
-                    className="w-24 accent-accent"
-                    max={IMAGE_SCALE_MAX}
-                    min={IMAGE_SCALE_MIN}
-                    onChange={(event) => applyImageScale(Number(event.target.value))}
-                    step={IMAGE_SCALE_STEP}
-                    type="range"
-                    value={imageScale}
-                  />
-                  <button
-                    className="min-w-14 rounded-md px-1 py-1.5 text-xs font-medium text-ink hover:bg-soft"
-                    onClick={() => applyImageScale(1)}
-                    title="100%に戻す"
-                    type="button"
-                  >
-                    {Math.round(imageScale * 100)}%
-                  </button>
-                  <button
-                    aria-label="画像を拡大"
-                    className="icon-button"
-                    disabled={imageScale >= IMAGE_SCALE_MAX}
-                    onClick={() => applyImageScale(imageScale + IMAGE_SCALE_STEP)}
-                    type="button"
-                  >
-                    <Plus size={16} />
-                  </button>
-                </div>
+                <ImageScaleControls label="画像" value={imageScale} onChange={applyImageScale} />
               ) : null}
             </div>
             {sourceUrl && meta && cropRect ? (
