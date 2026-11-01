@@ -4,21 +4,22 @@ import { Link } from 'react-router-dom'
 
 export function AppShell({ children }: { children: ReactNode }) {
   return (
-    <div className="min-h-screen bg-canvas text-ink">
-      <header className="border-b border-line bg-panel px-8 py-3">
-        <div className="flex items-center">
-          <Link className="flex items-center gap-3 text-ink no-underline" to="/">
-            <span className="grid size-9 place-items-center rounded-md bg-accent text-white">
-              <Photo size={18} strokeWidth={1.8} />
-            </span>
-            <strong className="text-base font-semibold">Photo Editer</strong>
+    <div className="site-shell">
+      <div className="page-container">
+        <header className="site-header">
+          <Link className="site-brand" to="/" aria-label="Photo Editer トップへ">
+            <span className="brand-mark"><Photo size={20} strokeWidth={1.8} /></span>
+            <strong>Photo Editer</strong>
           </Link>
-        </div>
-      </header>
-      <div className="grid place-items-center">
-        <main className="grid w-full max-w-[960px] gap-7 px-8 py-8">
-          {children}
-        </main>
+          <span className="header-caption">IMAGE TOOLS</span>
+        </header>
+        <main className="site-main">{children}</main>
+        <footer className="site-footer">
+          <span>Photo Editer</span>
+          <a href="https://github.com/naoiw/photo-editer" target="_blank" rel="noopener noreferrer">
+            GitHub
+          </a>
+        </footer>
       </div>
     </div>
   )

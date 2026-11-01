@@ -143,10 +143,6 @@ export function canvasToBlob(canvas: HTMLCanvasElement, type = IMAGE_EXPORT_TYPE
   })
 }
 
-export async function loadImageBitmap(file: File) {
-  return createImageBitmap(file)
-}
-
 export function downloadBlob(blob: Blob, filename: string) {
   const url = URL.createObjectURL(blob)
   const anchor = document.createElement('a')

@@ -35,11 +35,11 @@ export function ImageFilePicker({
   }
 
   return (
-    <div className="grid gap-2">
+    <div className="grid min-w-0 gap-2">
       <label className="field-label" htmlFor={inputId}>{label}</label>
-      <div className="relative">
+      <div className="relative min-w-0">
         <button
-          className={`grid w-full gap-4 rounded-lg border border-dashed px-5 py-6 text-left transition-colors ${dragging ? 'border-accent bg-accent/5' : 'border-line bg-panel hover:bg-soft'}`}
+          className={`grid w-full min-w-0 gap-4 rounded-xl border border-dashed px-4 py-5 text-left transition-colors ${dragging ? 'border-accent bg-accent/5' : 'border-line bg-panel hover:bg-soft'}`}
           onClick={() => inputRef.current?.click()}
           onDragLeave={(event) => {
             event.preventDefault()
@@ -56,12 +56,12 @@ export function ImageFilePicker({
           }}
           type="button"
         >
-          <div className="flex items-start gap-4">
+          <div className="flex min-w-0 items-start gap-4">
             <span className="grid size-10 shrink-0 place-items-center rounded-md bg-soft text-accent">
               <Upload size={18} />
             </span>
-            <div className={`grid gap-1 ${showToolbar ? 'pr-20' : ''}`}>
-              <strong className="text-sm font-medium text-ink">
+            <div className={`grid min-w-0 gap-1 ${showToolbar ? 'pr-20' : ''}`}>
+              <strong className="break-all text-sm font-medium text-ink">
                 {fileName ?? '画像を選択、またはドロップ'}
               </strong>
               <span className="text-xs text-muted">{hint}</span>

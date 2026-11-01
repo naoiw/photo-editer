@@ -20,27 +20,24 @@ const tools = [
 export function HomePage() {
   return (
     <AppShell>
-      <div className="grid gap-2">
+      <div className="page-intro">
+        <p className="eyebrow">IMAGE EDITOR</p>
         <h1 className="page-title">画像加工ツール</h1>
-        <p className="text-sm text-muted">
-          ローカルの画像をブラウザ上でトリミングしたり、背景とフレームを合成したりできます。画像はサーバーへ送信されません。
+        <p className="page-description">
+          ローカルの画像をトリミング、または背景とフレームを合成できます。
+          画像はブラウザ内で処理し、サーバーには送信しません。
         </p>
       </div>
 
-      <section className="grid grid-cols-2 gap-5">
+      <section aria-label="加工機能" className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         {tools.map((tool) => (
-          <Link
-            className="grid gap-5 rounded-lg border border-line bg-panel p-6 text-ink no-underline transition-colors hover:bg-soft"
-            key={tool.to}
-            to={tool.to}
-          >
-            <span className="grid size-10 place-items-center rounded-md bg-soft text-accent">
-              <tool.icon size={20} />
-            </span>
+          <Link className="tool-card group" key={tool.to} to={tool.to}>
+            <span className="tool-card__icon"><tool.icon size={23} strokeWidth={1.8} /></span>
             <div className="grid gap-2">
-              <h2 className="text-lg font-semibold">{tool.title}</h2>
-              <p className="text-sm leading-6 text-muted">{tool.description}</p>
+              <h2 className="text-lg font-semibold text-ink">{tool.title}</h2>
+              <p className="text-sm leading-7 text-muted">{tool.description}</p>
             </div>
+            <span className="tool-card__action">開く <span aria-hidden="true">→</span></span>
           </Link>
         ))}
       </section>

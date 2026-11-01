@@ -22,7 +22,7 @@
 | 分類 | 技術 | 用途 |
 | --- | --- | --- |
 | UI | React 19 | 画面コンポーネント |
-| ルーティング | React Router 7（`BrowserRouter`） | ページ遷移 |
+| ルーティング | React Router 7（`HashRouter`） | ページ遷移 |
 | ビルド | Vite 7 | 開発サーバー・本番バンドル |
 | 言語 | TypeScript 5.9（strict） | 型検査 |
 | スタイル | Tailwind CSS 4（`@tailwindcss/vite`） | ユーティリティ CSS |
@@ -30,7 +30,7 @@
 | テスト | Vitest 3 | 画像 utility の単体テスト |
 | Lint | ESLint 9 + typescript-eslint + react-hooks / react-refresh | 静的解析 |
 | パッケージマネージャ | pnpm 10.28.1 | 依存関係 |
-| ホスティング想定 | Vercel | SPA 向け rewrite |
+| ホスティング | GitHub Pages | main / develop を別パスで公開 |
 
 画像処理は Canvas API（`createImageBitmap` / `HTMLCanvasElement` / `canvas.toBlob`）のみを使い、外部画像ライブラリは依存しません。
 
@@ -38,7 +38,7 @@
 
 ```
 photo-editer/
-├── docs/                      # 本仕様書など
+├── docs/                      # SPEC / DEVELOPMENT / DEPLOYMENT
 ├── src/
 │   ├── App.tsx                # ルート定義
 │   ├── main.tsx               # エントリ（StrictMode + BrowserRouter）
@@ -59,7 +59,7 @@ photo-editer/
 │       └── ComposePage.tsx
 ├── index.html
 ├── package.json
-├── vercel.json
+├── .github/workflows/       # CI と Pages 配布
 └── vite.config.ts
 ```
 
@@ -74,7 +74,7 @@ photo-editer/
 | `/compose` | `ComposePage` | 背景とフレームの合成 |
 | `*` | — | `/` へ `replace` リダイレクト |
 
-共通レイアウト `AppShell` はヘッダー（ロゴ＋「Photo Editer」でホームへ戻る）と、最大幅 960px のメイン領域を提供します。各ツール画面からホームへ戻るリンクもあります。
+共通レイアウト `AppShell` は最大幅 1180px のヘッダー・コンテンツ・フッターを提供します。ホームに戻るリンクは各ツールにもあります。GitHub Pages 上では `#/crop`, `#/compose` のハッシュルートを使います。
 
 ## 5. 共通仕様
 
@@ -105,9 +105,9 @@ photo-editer/
 
 ### 5.4 レイアウト・見た目
 
-- フォント: Noto Sans JP（Google Fonts）
-- `body` の最小幅は 1024px（デスクトップ前提）
-- ライトテーマ固定（`color-scheme: light`）
+- フォント: Inter / Noto Sans JP / システムフォント
+- `body` の最小幅は 320px。スマートフォンでは設定とプレビューを縦積み
+- 他の naoiw サイトと共通のダークテーマ（`color-scheme: dark`）
 - アクセントカラーは `#2f6f5e`
 
 ## 6. ホーム
@@ -164,6 +164,8 @@ photo-editer/
 - `padY = cropRect.height * 0.25`
 - `stageWidth = scaledWidth + padX * 2`
 - `stageHeight = scaledHeight + padY * 2`
+
+ステージは表示領域の幅を超えず、アスペクト比を維持したまま最大高さ `28rem` に収めます。数値入力・画像プレビューが画面の横幅を押し広げないよう、各グリッド要素の最小幅は `0` とします。
 
 ### 7.4 処理（`cropImageToSize`）
 
@@ -272,7 +274,6 @@ photo-editer/
 | `getSourceIntersection(crop, sw, sh)` | 枠とソースの交差をソース座標と枠ローカル座標で返す。交差なしなら `null` |
 | `filenameWithoutExtension` | 末尾の拡張子（最後の `.` 以降）だけを除く。例: `photo.final.png` → `photo.final` |
 | `canvasToBlob(canvas, type='image/png', quality=0.92)` | `toBlob` の Promise 化。失敗時は例外。既定は PNG |
-| `loadImageBitmap` | `createImageBitmap` の薄いラッパ |
 | `downloadBlob` | Object URL を作り、ダウンロード後に即 revoke |
 | `revokeObjectUrl` | `null` / `undefined` は無視 |
 
@@ -285,7 +286,7 @@ photo-editer/
 | `AppShell` | ヘッダーとメイン幅の枠 |
 | `ImageFilePicker` | クリック選択と D&D。任意の hint / accept / サムネイル。`onClear` 指定時は選択済みなら右上に赤い削除ボタン。任意の `actions` を削除ボタンの左に置ける |
 | `Notice` | エラー（`role="alert"`）または成功（`role="status"`）の帯 |
-| `LoadingState` | スピナー付きプレースホルダ（現状ページからは未使用） |
+
 
 ## 11. 開発・ビルド・デプロイ
 
@@ -311,14 +312,14 @@ pnpm test     # vitest run
 - 現行は `imageUtils.test.ts` のみ（中央配置、はみ出し clamp、交差写像、拡大率、cover 拡大率、ファイル名）
 - Canvas を使う `cropImageToSize` / `composeBackgroundAndFrame` のテストは未実装
 
-### 11.4 Vercel
+### 11.4 GitHub Pages
 
-`vercel.json` ですべてのパスを `/index.html` へ rewrite し、クライアントルーティングを有効にする。
+`main` を `/photo-editer/`、`develop` を `/photo-editer/develop/` で配布します。公開と CI の詳細は [DEPLOYMENT.md](DEPLOYMENT.md) を参照してください。
 
 ### 11.5 ブラウザ前提
 
 - `createImageBitmap`、Canvas 2D、`canvas.toBlob`（WebP / PNG）が使える環境
-- 最小幅 1024px のデスクトップ UI
+- 最小幅 320px のレスポンシブ UI
 - HTML `lang="ja"`、viewport は設定済みだがレイアウトはモバイル非対応
 
 ## 12. 現状の非機能・制約
