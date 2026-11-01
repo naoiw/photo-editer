@@ -4,8 +4,8 @@
 
 | ソース | URL |
 | --- | --- |
-| `main` | https://naoiw.github.io/photo-editer/ |
-| `develop` | https://naoiw.github.io/photo-editer/develop/ |
+| `main` | https://naoiw.github.io/photo-editor/ |
+| `develop` | https://naoiw.github.io/photo-editor/develop/ |
 
 公開先はどちらも同じ `github-pages` 環境です。1つの配布物の `/` と `/develop/` に成果物をまとめます。
 
@@ -15,7 +15,7 @@
 2. 検証が成功した **develop push** だけを、main 上の `.github/workflows/deploy-pages.yml` が `workflow_run` で検知します。
 3. main push、または main からの手動実行でも公開できます。
 4. 公開ジョブは main と、成功した develop の SHA を別々に checkout して再ビルドします。
-5. 本番ビルドは `--base=/photo-editer/`、プレビュービルドは `--base=/photo-editer/develop/` を使います。
+5. 本番ビルドは `--base=/photo-editor/`、プレビュービルドは `--base=/photo-editor/develop/` を使います。
 6. 両方の `dist/` を1つのアーティファクトにまとめ、`actions/deploy-pages` から公開します。
 
 ワークフローの実行権限は必要最小限にし、GitHub Pages の環境へのデプロイは main 上のワークフローだけが行います。
@@ -31,7 +31,7 @@ GitHub Pages の環境保護ルールで main だけを許可していても、�
 
 ## SPA の画面遷移
 
-GitHub Pages に SPA のルーティング rewrite はありません。React Router の `HashRouter` を使い、`/photo-editer/develop/#/crop` のような URL にします。ハッシュ以下はサーバーに送信されないため、直接リンクや再読み込みでも同じ画面が開けます。
+GitHub Pages に SPA のルーティング rewrite はありません。React Router の `HashRouter` を使い、`/photo-editor/develop/#/crop` のような URL にします。ハッシュ以下はサーバーに送信されないため、直接リンクや再読み込みでも同じ画面が開けます。
 
 ## 注意
 
