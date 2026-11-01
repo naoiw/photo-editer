@@ -1,0 +1,96 @@
+name: Deploy to GitHub Pages
+
+# Publish production at / and the validated develop revision at /develop/.
+# Keep this workflow on main so workflow_run can deploy to a protected Pages environment.
+on:
+  push:
+    branches: [main]
+  workflow_run:
+    workflows: [Validate develop]
+    types: [completed]
+    branches: [develop]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    if: >-
+      github.event_name == 'push' ||
+      (github.event_name == 'workflow_dispatch' && github.ref_name == 'main') ||
+      (github.event_name == 'workflow_run' &&
+       github.event.workflow_run.event == 'push' &&
+       github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.head_repository.full_name == github.repository)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout production
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          path: production
+
+      - name: Checkout validated preview revision
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || 'develop' }}
+          path: preview
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.28.1
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: |
+            production/pnpm-lock.yaml
+            preview/pnpm-lock.yaml
+
+      - name: Test and build production
+        working-directory: production
+        run: |
+          pnpm install --frozen-lockfile
+          pnpm test
+          pnpm exec tsc -b
+          pnpm exec vite build --base=/photo-editer/
+
+      - name: Test, lint and build preview
+        working-directory: preview
+        run: |
+          pnpm install --frozen-lockfile
+          pnpm test
+          pnpm lint
+          pnpm exec tsc -b
+          pnpm exec vite build --base=/photo-editer/develop/
+
+      - name: Combine sites
+        run: |
+          mkdir -p publish/develop
+          cp -a production/dist/. publish/
+          cp -a preview/dist/. publish/develop/
+          touch publish/.nojekyll
+
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: publish
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
