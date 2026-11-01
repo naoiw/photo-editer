@@ -10,8 +10,6 @@ import { composeBackgroundAndFrame } from '../features/compose/composeImage'
 import {
   FILL_COLORS,
   IMAGE_EXPORT_EXTENSION,
-  IMAGE_SCALE_MAX,
-  IMAGE_SCALE_MIN,
   IMAGE_SCALE_STEP,
   clampImageScale,
   downloadBlob,

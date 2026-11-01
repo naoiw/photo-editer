@@ -9,8 +9,6 @@ import { ToolPageHeader } from '../components/ToolPageHeader'
 import { cropImageToSize } from '../features/crop/cropImage'
 import {
   CROP_MAX_OVERHANG_RATIO,
-  IMAGE_SCALE_MAX,
-  IMAGE_SCALE_MIN,
   IMAGE_SCALE_STEP,
   clampImageScale,
   downloadBlob,
