@@ -192,7 +192,7 @@ export function CropPage() {
 
   return (
     <AppShell>
-      <div className="flex items-end justify-between gap-6">
+      <div className="flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-end">
         <div className="grid gap-2">
           <h1 className="page-title">トリミング</h1>
           <p className="text-sm text-muted">
@@ -204,8 +204,8 @@ export function CropPage() {
 
       {error ? <Notice>{error}</Notice> : null}
 
-      <section className="grid grid-cols-[1fr_1.2fr] gap-6">
-        <div className="grid content-start gap-5 rounded-lg border border-line bg-panel p-6">
+      <section className="grid min-w-0 grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)] lg:gap-6">
+        <div className="grid content-start gap-5 min-w-0 rounded-2xl border border-line bg-panel p-4 sm:p-6">
           <ImageFilePicker
             fileName={file?.name}
             label="元画像"
@@ -273,7 +273,7 @@ export function CropPage() {
         </div>
 
         <div className="grid gap-5">
-          <div className="grid gap-3 rounded-lg border border-line bg-panel p-6">
+          <div className="grid gap-3 min-w-0 rounded-2xl border border-line bg-panel p-4 sm:p-6">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <h2 className="text-sm font-semibold">切り抜き位置</h2>
               {sourceUrl && meta && cropRect ? (
@@ -358,7 +358,7 @@ export function CropPage() {
                 />
               </div>
             ) : (
-              <div className="grid min-h-64 place-items-center rounded-md border border-dashed border-line bg-soft text-sm text-muted">
+              <div className="grid min-h-64 place-items-center rounded-md border border-dashed border-line bg-soft p-4 text-center text-sm text-muted">
                 画像を選択すると、ここで切り抜き範囲をドラッグ調整できます。
               </div>
             )}
@@ -367,10 +367,10 @@ export function CropPage() {
             </p>
           </div>
 
-          <div className="grid gap-4 rounded-lg border border-line bg-panel p-6">
+          <div className="grid gap-4 min-w-0 rounded-2xl border border-line bg-panel p-4 sm:p-6">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <h2 className="text-sm font-semibold">出力プレビュー</h2>
-              <div className="flex gap-3">
+              <div className="flex flex-wrap gap-2">
                 <button className="button-secondary" disabled={!file || processing} onClick={() => void handleProcess()} type="button">
                   プレビュー
                 </button>
@@ -397,7 +397,7 @@ export function CropPage() {
                 />
               </div>
             ) : (
-              <div className="grid min-h-40 place-items-center rounded-md border border-dashed border-line bg-soft text-sm text-muted">
+              <div className="grid min-h-40 place-items-center rounded-md border border-dashed border-line bg-soft p-4 text-center text-sm text-muted">
                 プレビューまたは保存を実行すると結果が表示されます。
               </div>
             )}

@@ -202,7 +202,7 @@ export function ComposePage() {
 
   return (
     <AppShell>
-      <div className="flex items-end justify-between gap-6">
+      <div className="flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-end">
         <div className="grid gap-2">
           <h1 className="page-title">背景とフレームの合成</h1>
           <p className="text-sm text-muted">
@@ -214,8 +214,8 @@ export function ComposePage() {
 
       {error ? <Notice>{error}</Notice> : null}
 
-      <section className="grid grid-cols-[1fr_1.2fr] gap-6">
-        <div className="grid content-start gap-5 rounded-lg border border-line bg-panel p-6">
+      <section className="grid min-w-0 grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)] lg:gap-6">
+        <div className="grid content-start gap-5 min-w-0 rounded-2xl border border-line bg-panel p-4 sm:p-6">
           <ImageFilePicker
             fileName={backgroundFile?.name}
             label="背景画像"
@@ -298,7 +298,7 @@ export function ComposePage() {
           ) : null}
         </div>
 
-        <div className="grid gap-4 rounded-lg border border-line bg-panel p-6">
+        <div className="grid gap-4 min-w-0 rounded-2xl border border-line bg-panel p-4 sm:p-6">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <h2 className="text-sm font-semibold">合成プレビュー</h2>
             {canAdjust ? (
@@ -391,7 +391,7 @@ export function ComposePage() {
               )}
             </div>
           ) : (
-            <div className="grid min-h-72 place-items-center rounded-md border border-dashed border-line bg-soft text-sm text-muted">
+            <div className="grid min-h-72 place-items-center rounded-md border border-dashed border-line bg-soft p-4 text-center text-sm text-muted">
               背景とフレームを選択すると、ここにフレームサイズのプレビューが表示されます。
             </div>
           )}
@@ -402,7 +402,7 @@ export function ComposePage() {
                 プレビューの大きさはフレーム画像と同じ比率です。背景をドラッグして位置を変え、スライダーやホイールで大きさを合わせられます。
               </p>
             ) : null}
-            <div className="ml-auto flex gap-3">
+            <div className="ml-auto flex flex-wrap gap-2">
               <button
                 className="button-secondary"
                 disabled={!backgroundFile || !frameFile || !cropRect || processing}
