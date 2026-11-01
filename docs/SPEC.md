@@ -165,6 +165,8 @@ photo-editer/
 - `stageWidth = scaledWidth + padX * 2`
 - `stageHeight = scaledHeight + padY * 2`
 
+ステージは表示領域の幅を超えず、アスペクト比を維持したまま最大高さ `28rem` に収めます。数値入力・画像プレビューが画面の横幅を押し広げないよう、各グリッド要素の最小幅は `0` とします。
+
 ### 7.4 処理（`cropImageToSize`）
 
 1. `createImageBitmap` で元画像を読む。

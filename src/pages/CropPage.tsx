@@ -192,7 +192,7 @@ export function CropPage() {
 
   return (
     <AppShell>
-      <div className="flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-end">
+      <div className="flex min-w-0 flex-col items-start justify-between gap-4 sm:flex-row sm:items-end">
         <div className="grid gap-2">
           <h1 className="page-title">トリミング</h1>
           <p className="text-sm text-muted">
@@ -204,7 +204,7 @@ export function CropPage() {
 
       {error ? <Notice>{error}</Notice> : null}
 
-      <section className="grid min-w-0 grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)] lg:gap-6">
+      <section className="grid w-full min-w-0 grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)] lg:gap-6">
         <div className="grid content-start gap-5 min-w-0 rounded-2xl border border-line bg-panel p-4 sm:p-6">
           <ImageFilePicker
             fileName={file?.name}
@@ -219,21 +219,21 @@ export function CropPage() {
             previewUrl={sourceUrl}
           />
 
-          <div className="grid grid-cols-2 gap-4">
-            <label className="grid gap-2">
+          <div className="grid min-w-0 grid-cols-2 gap-3 sm:gap-4">
+            <label className="grid min-w-0 gap-2">
               <span className="field-label">幅 (px)</span>
               <input
-                className="field-input"
+                className="field-input min-w-0"
                 min={1}
                 onChange={(event) => setWidth(Math.max(1, Number(event.target.value) || 1))}
                 type="number"
                 value={width}
               />
             </label>
-            <label className="grid gap-2">
+            <label className="grid min-w-0 gap-2">
               <span className="field-label">高さ (px)</span>
               <input
-                className="field-input"
+                className="field-input min-w-0"
                 min={1}
                 onChange={(event) => setHeight(Math.max(1, Number(event.target.value) || 1))}
                 type="number"
@@ -272,7 +272,7 @@ export function CropPage() {
           ) : null}
         </div>
 
-        <div className="grid gap-5">
+        <div className="grid min-w-0 gap-5">
           <div className="grid gap-3 min-w-0 rounded-2xl border border-line bg-panel p-4 sm:p-6">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <h2 className="text-sm font-semibold">切り抜き位置</h2>
@@ -319,7 +319,7 @@ export function CropPage() {
             </div>
             {sourceUrl && meta && cropRect ? (
               <div
-                className="relative overflow-hidden rounded-md select-none"
+                className="relative mx-auto min-w-0 max-w-full overflow-hidden rounded-md select-none"
                 onPointerCancel={() => {
                   dragState.current = null
                 }}
@@ -340,6 +340,9 @@ export function CropPage() {
                 ref={stageRef}
                 style={{
                   aspectRatio: `${stageWidth} / ${stageHeight}`,
+                  // Match the compose preview: constrain tall images without widening the page.
+                  maxHeight: '28rem',
+                  width: `min(100%, calc(28rem * ${stageWidth} / ${stageHeight}))`,
                   background: fillColor === 'transparent'
                     ? 'repeating-conic-gradient(#d8dde3 0% 25%, #ffffff 0% 50%) 50% / 16px 16px'
                     : fillPreview.css,
