@@ -25,13 +25,13 @@ React / TypeScript で作ったブラウザ画像加工ツールです。トリ�
 - **React Router 7** — 画面遷移
 - **Tailwind CSS 4 / Vite 7** — スタイル・ビルド
 - **Vitest / ESLint** — テスト・静的解析
-- **Node.js 22 / pnpm 10** — 開発環境
+- **Node.js 26 / pnpm 10** — 開発環境
 - **GitHub Actions / GitHub Pages** — 検証・公開
 
 ## ローカル開発
 
 ```bash
-corepack enable
+npm install --global pnpm@10.28.1
 pnpm install --frozen-lockfile
 pnpm dev
 pnpm test

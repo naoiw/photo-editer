@@ -2,12 +2,12 @@
 
 ## 開発環境
 
-- Node.js 22（`.nvmrc`）
+- Node.js 26（`.nvmrc`）
 - pnpm 10.28.1（`package.json` の `packageManager`）
 - React 19 / TypeScript / Vite 7 / Tailwind CSS 4
 
 ```bash
-corepack enable
+npm install --global pnpm@10.28.1
 pnpm install --frozen-lockfile
 pnpm dev
 ```
